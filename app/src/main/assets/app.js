@@ -27,11 +27,12 @@ function renderAll(){
 }
 function renderDash(){const el=$('#dashSafras');const rows=state.safras.slice(0,4);el.innerHTML=rows.length?rows.map(s=>safraCard(s,true)).join(''):'<div class="empty">Cadastre sua primeira lavoura para começar.</div>'}
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
-function renderPropriedades(){const el=$('#propriedadesList');el.innerHTML=state.propriedades.length?state.propriedades.map(p=>`<div class="card"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">Produtor: ${esc(nameBy(state.produtores,p.produtor_id))}</div><div class="meta">${esc(p.municipio||'')} • ${Number(p.area_total_ha||0).toLocaleString('pt-BR')} ha</div><div class="meta">Protocolo: ${esc(p.protocolo||'automático')}</div></div><span class="pill gold">${state.talhoes.filter(t=>t.propriedade_id===p.id).length} talhões</span></div></div>`).join(''):'<div class="empty">Nenhuma propriedade cadastrada.</div>'}
-function renderTalhoes(){const el=$('#talhoesList');el.innerHTML=state.talhoes.length?state.talhoes.map(t=>`<div class="card"><div class="card-row"><div><h4>${esc(t.nome)}</h4><div class="meta">${esc(nameBy(state.propriedades,t.propriedade_id))}</div><div class="meta">Área: ${Number(t.area_ha||0).toLocaleString('pt-BR')} ha</div></div><span class="pill">${state.safras.filter(s=>s.talhao_id===t.id).length} safra(s)</span></div></div>`).join(''):'<div class="empty">Nenhum talhão cadastrado.</div>'}
-function safraCard(s,compact=false){const t=talhaoOfSafra(s),p=t?state.propriedades.find(x=>x.id===t.propriedade_id):null,age=ageDays(s.data_plantio),kg=prodTotal(s.id),prod=produtividade(s);return `<div class="card"><div class="card-row"><div><h4>${esc(s.cultura)} ${s.variedade?`• ${esc(s.variedade)}`:''}</h4><div class="meta">${esc(p?.nome||'')} • ${esc(t?.nome||'')}</div><div class="kpi-line"><span class="pill">${age===null?'idade —':age+' dias'}</span><span class="pill gold">${kg.toLocaleString('pt-BR')} kg</span><span class="pill">${prod.toFixed(2).replace('.',',')} t/ha</span></div></div><span class="pill ${s.status==='encerrada'?'red':''}">${esc(s.status||'ativa')}</span></div>${compact?'':`<div class="actions"><button class="mini-btn" data-action="adubacao" data-sid="${s.id}">+ Adubação</button><button class="mini-btn" data-action="aplicacao" data-sid="${s.id}">+ Aplicação</button><button class="mini-btn" data-action="colheita" data-sid="${s.id}">+ Colheita</button></div>`}</div>`}
+function renderPropriedades(){const el=$('#propriedadesList');el.innerHTML=state.propriedades.length?state.propriedades.map(p=>`<div class="card card-click" data-edit-propriedade="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">Produtor: ${esc(nameBy(state.produtores,p.produtor_id))}</div><div class="meta">${esc(p.municipio||'')} • ${Number(p.area_total_ha||0).toLocaleString('pt-BR')} ha</div><div class="meta">Protocolo: ${esc(p.protocolo||'automático')}</div></div><span class="pill gold">${state.talhoes.filter(t=>t.propriedade_id===p.id).length} talhões</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhuma propriedade cadastrada.</div>'}
+function renderTalhoes(){const el=$('#talhoesList');el.innerHTML=state.talhoes.length?state.talhoes.map(t=>`<div class="card card-click" data-edit-talhao="${t.id}"><div class="card-row"><div><h4>${esc(t.nome)}</h4><div class="meta">${esc(nameBy(state.propriedades,t.propriedade_id))}</div><div class="meta">Área: ${Number(t.area_ha||0).toLocaleString('pt-BR')} ha</div></div><span class="pill">${state.safras.filter(s=>s.talhao_id===t.id).length} safra(s)</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum talhão cadastrado.</div>'}
+function safraCard(s,compact=false){const t=talhaoOfSafra(s),p=t?state.propriedades.find(x=>x.id===t.propriedade_id):null,age=ageDays(s.data_plantio),kg=prodTotal(s.id),prod=produtividade(s);return `<div class="card"><div class="card-row card-click" data-edit-safra="${s.id}"><div><h4>${esc(s.cultura)} ${s.variedade?`• ${esc(s.variedade)}`:''}</h4><div class="meta">${esc(p?.nome||'')} • ${esc(t?.nome||'')}</div><div class="kpi-line"><span class="pill">${age===null?'idade —':age+' dias'}</span><span class="pill gold">${kg.toLocaleString('pt-BR')} kg</span><span class="pill">${prod.toFixed(2).replace('.',',')} t/ha</span></div><div class="edit-hint">Toque para abrir e editar</div></div><span class="pill ${s.status==='encerrada'?'red':''}">${esc(s.status||'ativa')}</span></div>${compact?'':`<div class="actions"><button class="mini-btn" data-action="adubacao" data-sid="${s.id}">+ Adubação</button><button class="mini-btn" data-action="aplicacao" data-sid="${s.id}">+ Aplicação</button><button class="mini-btn" data-action="colheita" data-sid="${s.id}">+ Colheita</button></div>`}</div>`}
 function renderSafras(){const el=$('#safrasList');el.innerHTML=state.safras.length?state.safras.map(s=>safraCard(s)).join(''):'<div class="empty">Nenhuma lavoura cadastrada.</div>'}
 function opts(arr,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}">${esc(x[label])}</option>`).join('')}
+function optsSelected(arr,selected,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}" ${String(x[value])===String(selected)?'selected':''}>${esc(x[label])}</option>`).join('')}
 function modal(title,body,onSubmit){const w=$('#modalWrap');w.className='modal-backdrop';w.innerHTML=`<div class="modal"><div class="modal-head"><h3>${title}</h3><button class="close" id="closeModal">×</button></div><form id="modalForm">${body}<button class="btn btn-primary btn-block" type="submit">SALVAR</button></form></div>`;$('#closeModal').onclick=closeModal;$('#modalForm').onsubmit=onSubmit}
 function closeModal(){$('#modalWrap').className='hidden';$('#modalWrap').innerHTML=''}
 async function updateRow(table,id,row){
@@ -99,6 +100,43 @@ function editProdutor(id){
  },0);
 }
 
+
+function editPropriedade(id){
+ const p=state.propriedades.find(x=>x.id===id);if(!p)return;
+ modal('Editar propriedade',`
+ <div class="field"><label>Produtor</label><select name="produtor_id" required><option value="">Selecione</option>${optsSelected(state.produtores,p.produtor_id)}</select></div>
+ <div class="field"><label>Nome da propriedade</label><input name="nome" required value="${esc(p.nome||'')}"></div>
+ <div class="row2"><div class="field"><label>Município</label><input name="municipio" value="${esc(p.municipio||'')}"></div><div class="field"><label>Área total (ha)</label><input name="area_total_ha" type="number" step="0.01" value="${p.area_total_ha??''}"></div></div>
+ <div class="field"><label>Comunidade</label><input name="comunidade" value="${esc(p.comunidade||'')}"></div>
+ <button class="btn btn-danger btn-block" type="button" id="deletePropriedade">EXCLUIR PROPRIEDADE</button>
+ `,async e=>{e.preventDefault();const btn=e.submitter;if(btn)btn.disabled=true;try{await updateRow('propriedades',id,formObj(e.currentTarget));closeModal();await loadAll();toast('Propriedade atualizada')}catch(err){console.error(err);toast('Erro ao atualizar propriedade')}finally{if(btn)btn.disabled=false}});
+ setTimeout(()=>{const del=$('#deletePropriedade');if(del)del.onclick=async()=>{if(state.talhoes.some(t=>t.propriedade_id===id)){toast('Exclua primeiro os talhões desta propriedade');return}if(!confirm('Excluir esta propriedade?'))return;try{await deleteRow('propriedades',id);closeModal();await loadAll();toast('Propriedade excluída')}catch(err){console.error(err);toast('Não foi possível excluir')}}},0);
+}
+
+function editTalhao(id){
+ const t=state.talhoes.find(x=>x.id===id);if(!t)return;
+ modal('Editar talhão',`
+ <div class="field"><label>Propriedade</label><select name="propriedade_id" required><option value="">Selecione</option>${optsSelected(state.propriedades,t.propriedade_id)}</select></div>
+ <div class="row2"><div class="field"><label>Nome</label><input name="nome" required value="${esc(t.nome||'')}"></div><div class="field"><label>Área (ha)</label><input name="area_ha" type="number" step="0.01" value="${t.area_ha??''}"></div></div>
+ <div class="field"><label>Observações</label><textarea name="observacoes">${esc(t.observacoes||'')}</textarea></div>
+ <button class="btn btn-danger btn-block" type="button" id="deleteTalhao">EXCLUIR TALHÃO</button>
+ `,async e=>{e.preventDefault();const btn=e.submitter;if(btn)btn.disabled=true;try{await updateRow('talhoes',id,formObj(e.currentTarget));closeModal();await loadAll();toast('Talhão atualizado')}catch(err){console.error(err);toast('Erro ao atualizar talhão')}finally{if(btn)btn.disabled=false}});
+ setTimeout(()=>{const del=$('#deleteTalhao');if(del)del.onclick=async()=>{if(state.safras.some(s=>s.talhao_id===id)){toast('Exclua primeiro as lavouras deste talhão');return}if(!confirm('Excluir este talhão?'))return;try{await deleteRow('talhoes',id);closeModal();await loadAll();toast('Talhão excluído')}catch(err){console.error(err);toast('Não foi possível excluir')}}},0);
+}
+
+function editSafra(id){
+ const s=state.safras.find(x=>x.id===id);if(!s)return;
+ modal('Editar lavoura',`
+ <div class="field"><label>Talhão</label><select name="talhao_id" required><option value="">Selecione</option>${state.talhoes.map(t=>`<option value="${t.id}" ${String(t.id)===String(s.talhao_id)?'selected':''}>${esc(nameBy(state.propriedades,t.propriedade_id))} • ${esc(t.nome)}</option>`).join('')}</select></div>
+ <div class="row2"><div class="field"><label>Cultura</label><input name="cultura" required value="${esc(s.cultura||'')}"></div><div class="field"><label>Variedade</label><input name="variedade" value="${esc(s.variedade||'')}"></div></div>
+ <div class="row2"><div class="field"><label>Data de plantio</label><input name="data_plantio" type="date" value="${esc(s.data_plantio||'')}"></div><div class="field"><label>Nº de plantas</label><input name="numero_plantas" type="number" value="${s.numero_plantas??''}"></div></div>
+ <div class="row2"><div class="field"><label>Espaçamento linhas (m)</label><input name="espacamento_linhas_m" type="number" step="0.01" value="${s.espacamento_linhas_m??''}"></div><div class="field"><label>Espaçamento plantas (m)</label><input name="espacamento_plantas_m" type="number" step="0.01" value="${s.espacamento_plantas_m??''}"></div></div>
+ <div class="field"><label>Status</label><select name="status"><option value="ativa" ${s.status!=='encerrada'?'selected':''}>Ativa</option><option value="encerrada" ${s.status==='encerrada'?'selected':''}>Encerrada</option></select></div>
+ <button class="btn btn-danger btn-block" type="button" id="deleteSafra">EXCLUIR LAVOURA</button>
+ `,async e=>{e.preventDefault();const btn=e.submitter;if(btn)btn.disabled=true;try{await updateRow('safras',id,formObj(e.currentTarget));closeModal();await loadAll();toast('Lavoura atualizada')}catch(err){console.error(err);toast('Erro ao atualizar lavoura')}finally{if(btn)btn.disabled=false}});
+ setTimeout(()=>{const del=$('#deleteSafra');if(del)del.onclick=async()=>{const temReg=state.adubacoes.some(x=>x.safra_id===id)||state.aplicacoes.some(x=>x.safra_id===id)||state.colheitas.some(x=>x.safra_id===id);if(temReg){toast('Esta lavoura possui registros. Exclua-os primeiro.');return}if(!confirm('Excluir esta lavoura?'))return;try{await deleteRow('safras',id);closeModal();await loadAll();toast('Lavoura excluída')}catch(err){console.error(err);toast('Não foi possível excluir')}}},0);
+}
+
 async function insertRow(table,row){row.user_id=uid();if(!navigator.onLine){queueOp(table,row);toast('Salvo offline. Sincroniza quando houver internet.');return [row]}try{return await api(`/rest/v1/${table}`,{method:'POST',body:JSON.stringify(row)})}catch(e){if(e.message.includes('Failed to fetch')){queueOp(table,row);toast('Salvo offline. Sincroniza depois.');return [row]}throw e}}
 function queueOp(table,row){const q=JSON.parse(localStorage.getItem('tg_queue')||'[]');q.push({table,row});localStorage.setItem('tg_queue',JSON.stringify(q))}
 async function syncQueue(){if(!navigator.onLine||!state.session)return;let q=JSON.parse(localStorage.getItem('tg_queue')||'[]');if(!q.length)return;const left=[];for(const op of q){try{await api(`/rest/v1/${op.table}`,{method:'POST',body:JSON.stringify(op.row)})}catch{left.push(op)}}localStorage.setItem('tg_queue',JSON.stringify(left));if(!left.length){toast('Registros offline sincronizados');await loadAll()}}
@@ -124,7 +162,10 @@ document.addEventListener('click',e=>{
  const g=e.target.closest('[data-go]');if(g)go(g.dataset.go);
  const o=e.target.closest('[data-open]');if(o)openForm(o.dataset.open);
  const a=e.target.closest('[data-action]');if(a)openForm(a.dataset.action,a.dataset.sid);
- const ep=e.target.closest('[data-edit-produtor]');if(ep)editProdutor(ep.dataset.editProdutor);
+ const ep=e.target.closest('[data-edit-produtor]');if(ep)return editProdutor(ep.dataset.editProdutor);
+ const epr=e.target.closest('[data-edit-propriedade]');if(epr)return editPropriedade(epr.dataset.editPropriedade);
+ const et=e.target.closest('[data-edit-talhao]');if(et)return editTalhao(et.dataset.editTalhao);
+ const es=e.target.closest('[data-edit-safra]');if(es)return editSafra(es.dataset.editSafra);
 });
 function netBadge(){$('#offlineBadge').classList.toggle('hidden',navigator.onLine)}window.addEventListener('online',()=>{netBadge();syncQueue()});window.addEventListener('offline',netBadge);netBadge();
 document.addEventListener('focusin', e => {
