@@ -127,5 +127,15 @@ document.addEventListener('click',e=>{
  const ep=e.target.closest('[data-edit-produtor]');if(ep)editProdutor(ep.dataset.editProdutor);
 });
 function netBadge(){$('#offlineBadge').classList.toggle('hidden',navigator.onLine)}window.addEventListener('online',()=>{netBadge();syncQueue()});window.addEventListener('offline',netBadge);netBadge();
+document.addEventListener('focusin', e => {
+  if (e.target.matches('input, textarea, select')) {
+    setTimeout(() => {
+      e.target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }, 350);
+  }
+});
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 boot();
