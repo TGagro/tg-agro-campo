@@ -1,0 +1,15 @@
+TG AGRO CAMPO - PROJETO ANDROID
+
+Este projeto empacota a V2 do TG Agro Campo em um aplicativo Android.
+
+Forma gratuita de gerar o APK:
+1. Crie um repositório no GitHub.
+2. Envie todo o conteúdo desta pasta para a raiz do repositório.
+3. Abra a aba Actions.
+4. Abra "Build TG Agro Campo APK".
+5. Execute o workflow (ou aguarde a execução automática após o upload).
+6. Ao terminar, baixe o artifact "TG-Agro-Campo-APK".
+7. Dentro dele estará app-debug.apk.
+
+O APK é de teste e pode ser instalado diretamente no Android habilitando a instalação de apps desta fonte.
+Para publicação na Play Store, posteriormente deve-se gerar uma versão Release assinada.
