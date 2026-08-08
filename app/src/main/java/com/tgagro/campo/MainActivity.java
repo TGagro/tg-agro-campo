@@ -28,7 +28,42 @@ public class MainActivity extends Activity {
             });
         }
 
-        setContentView(webView);
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+
+root.addView(
+        webView,
+        new android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        )
+);
+
+root.setOnApplyWindowInsetsListener((v, insets) -> {
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+        android.graphics.Insets bars = insets.getInsets(
+                android.view.WindowInsets.Type.systemBars()
+        );
+
+        v.setPadding(
+                bars.left,
+                bars.top,
+                bars.right,
+                bars.bottom
+        );
+    } else {
+        v.setPadding(
+                insets.getSystemWindowInsetLeft(),
+                insets.getSystemWindowInsetTop(),
+                insets.getSystemWindowInsetRight(),
+                insets.getSystemWindowInsetBottom()
+        );
+    }
+
+    return insets;
+});
+
+setContentView(root);
+root.requestApplyInsets();
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
