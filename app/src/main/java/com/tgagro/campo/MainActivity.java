@@ -16,17 +16,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow().setSoftInputMode(
+        android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+);
 
         webView = new WebView(this);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            webView.setOnApplyWindowInsetsListener((v, insets) -> {
-                int top = insets.getSystemWindowInsetTop();
-                int bottom = insets.getSystemWindowInsetBottom();
-                v.setPadding(0, top, 0, bottom);
-                return insets;
-            });
-        }
 
         android.widget.FrameLayout root = new android.widget.FrameLayout(this);
 
@@ -37,19 +31,26 @@ root.addView(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT
         )
 );
-
 root.setOnApplyWindowInsetsListener((v, insets) -> {
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+
         android.graphics.Insets bars = insets.getInsets(
-                android.view.WindowInsets.Type.systemBars()
+                WindowInsets.Type.systemBars()
         );
+
+        android.graphics.Insets keyboard = insets.getInsets(
+                WindowInsets.Type.ime()
+        );
+
+        int bottom = Math.max(bars.bottom, keyboard.bottom);
 
         v.setPadding(
                 bars.left,
                 bars.top,
                 bars.right,
-                bars.bottom
+                bottom
         );
+
     } else {
         v.setPadding(
                 insets.getSystemWindowInsetLeft(),
@@ -61,7 +62,6 @@ root.setOnApplyWindowInsetsListener((v, insets) -> {
 
     return insets;
 });
-
 setContentView(root);
 root.requestApplyInsets();
 
