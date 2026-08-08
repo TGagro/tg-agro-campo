@@ -140,13 +140,324 @@ function editSafra(id){
 async function insertRow(table,row){row.user_id=uid();if(!navigator.onLine){queueOp(table,row);toast('Salvo offline. Sincroniza quando houver internet.');return [row]}try{return await api(`/rest/v1/${table}`,{method:'POST',body:JSON.stringify(row)})}catch(e){if(e.message.includes('Failed to fetch')){queueOp(table,row);toast('Salvo offline. Sincroniza depois.');return [row]}throw e}}
 function queueOp(table,row){const q=JSON.parse(localStorage.getItem('tg_queue')||'[]');q.push({table,row});localStorage.setItem('tg_queue',JSON.stringify(q))}
 async function syncQueue(){if(!navigator.onLine||!state.session)return;let q=JSON.parse(localStorage.getItem('tg_queue')||'[]');if(!q.length)return;const left=[];for(const op of q){try{await api(`/rest/v1/${op.table}`,{method:'POST',body:JSON.stringify(op.row)})}catch{left.push(op)}}localStorage.setItem('tg_queue',JSON.stringify(left));if(!left.length){toast('Registros offline sincronizados');await loadAll()}}
+
+function openAdubacao(sid){
+  const hoje=new Date().toISOString().slice(0,10);
+
+  const registros=state.adubacoes
+    .filter(a=>a.safra_id===sid)
+    .sort((a,b)=>(b.data_aplicacao||'').localeCompare(a.data_aplicacao||''));
+
+  const produtos=[...new Set(
+    state.adubacoes.map(a=>a.produto).filter(Boolean)
+  )].sort();
+
+  const historico=registros.length
+    ?registros.map(a=>{
+      const programada=(a.data_aplicacao||'')>hoje;
+      return `
+        <div class="card">
+          <div class="card-row">
+            <div>
+              <h4>${esc(a.tipo||'Adubação')}</h4>
+              <div class="meta">${esc(a.produto||'Produto não informado')}</div>
+              <div class="meta">
+                Dose: ${esc(a.dose??'—')} ${esc(a.unidade_dose||'')}
+              </div>
+              <div class="meta">
+                Data: ${dateBR(a.data_aplicacao)}
+              </div>
+              ${a.observacoes?`<div class="meta">${esc(a.observacoes)}</div>`:''}
+            </div>
+            <span class="pill ${programada?'gold':''}">
+              ${programada?'Programada':'Realizada'}
+            </span>
+          </div>
+        </div>
+      `;
+    }).join('')
+    :'<div class="empty">Nenhuma adubação registrada nesta lavoura.</div>';
+
+  return modal('Adubação da lavoura',`
+    <input type="hidden" name="safra_id" value="${sid}">
+
+    <div class="row2">
+      <div class="field">
+        <label>Data da aplicação</label>
+        <input name="data_aplicacao" type="date" value="${hoje}" required>
+      </div>
+
+      <div class="field">
+        <label>Tipo</label>
+        <select name="tipo" required>
+          <option>Plantio</option>
+          <option>Cobertura</option>
+          <option>Foliar</option>
+          <option>Fertirrigação</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Produto</label>
+      <input name="produto" list="produtosAdubacao" required
+             placeholder="Ex.: MAP, KCl, sulfato de amônio">
+      <datalist id="produtosAdubacao">
+        ${produtos.map(p=>`<option value="${esc(p)}">`).join('')}
+      </datalist>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Dose</label>
+        <input name="dose" type="number" step="0.001">
+      </div>
+
+      <div class="field">
+        <label>Unidade</label>
+        <input name="unidade_dose" placeholder="g/planta, kg/ha, mL/L">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Observações</label>
+      <textarea name="observacoes"
+                placeholder="Forma de aplicação, parcelamento, observações..."></textarea>
+    </div>
+
+    <h3>Histórico e programação</h3>
+    ${historico}
+  `,submitSimple('adubacoes'));
+}
+
+function openAplicacao(sid){
+  const hoje=new Date().toISOString().slice(0,10);
+
+  const registros=state.aplicacoes
+    .filter(a=>a.safra_id===sid)
+    .sort((a,b)=>(b.data_aplicacao||'').localeCompare(a.data_aplicacao||''));
+
+  const produtos=[...new Set(
+    state.aplicacoes.map(a=>a.produto_comercial).filter(Boolean)
+  )].sort();
+
+  const historico=registros.length
+    ?registros.map(a=>{
+      const programada=(a.data_aplicacao||'')>hoje;
+      return `
+        <div class="card">
+          <div class="card-row">
+            <div>
+              <h4>${esc(a.produto_comercial||'Produto não informado')}</h4>
+              <div class="meta">${esc(a.finalidade||'Aplicação')}</div>
+              ${a.ingrediente_ativo?`<div class="meta">Ingrediente ativo: ${esc(a.ingrediente_ativo)}</div>`:''}
+              ${a.alvo?`<div class="meta">Alvo: ${esc(a.alvo)}</div>`:''}
+              <div class="meta">
+                Dose: ${esc(a.dose??'—')} ${esc(a.unidade_dose||'')}
+              </div>
+              <div class="meta">
+                Data: ${dateBR(a.data_aplicacao)}
+              </div>
+              ${a.sistema_grupo||a.grupo_moa
+                ?`<div class="meta">${esc(a.sistema_grupo||'')} ${esc(a.grupo_moa||'')}</div>`
+                :''
+              }
+            </div>
+            <span class="pill ${programada?'gold':''}">
+              ${programada?'Programada':'Realizada'}
+            </span>
+          </div>
+        </div>
+      `;
+    }).join('')
+    :'<div class="empty">Nenhuma aplicação registrada nesta lavoura.</div>';
+
+  return modal('Aplicações / Borrifações',`
+    <input type="hidden" name="safra_id" value="${sid}">
+
+    <div class="row2">
+      <div class="field">
+        <label>Data da aplicação</label>
+        <input name="data_aplicacao" type="date" value="${hoje}" required>
+      </div>
+
+      <div class="field">
+        <label>Finalidade</label>
+        <select name="finalidade" required>
+          <option>Inseticida</option>
+          <option>Fungicida</option>
+          <option>Acaricida</option>
+          <option>Bactericida</option>
+          <option>Herbicida</option>
+          <option>Biológico</option>
+          <option>Outro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Produto comercial</label>
+      <input name="produto_comercial"
+             list="produtosAplicacao"
+             required
+             placeholder="Nome do produto">
+      <datalist id="produtosAplicacao">
+        ${produtos.map(p=>`<option value="${esc(p)}">`).join('')}
+      </datalist>
+    </div>
+
+    <div class="field">
+      <label>Ingrediente ativo</label>
+      <input name="ingrediente_ativo">
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Sistema</label>
+        <select name="sistema_grupo">
+          <option value="">—</option>
+          <option>IRAC</option>
+          <option>FRAC</option>
+          <option>HRAC</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Grupo MoA</label>
+        <input name="grupo_moa" placeholder="Ex.: 11, 3A">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Dose</label>
+        <input name="dose" type="number" step="0.001">
+      </div>
+
+      <div class="field">
+        <label>Unidade</label>
+        <input name="unidade_dose" placeholder="mL/100 L, L/ha">
+      </div>
+    </div>
+
+<div class="field">
+  <label>Alvo</label>
+  <input name="alvo" placeholder="Lagarta, antracnose...">
+</div>
+
+<h3>Histórico e programação</h3>
+${historico}
+`,submitSimple('aplicacoes'));
+}
+
+function openColheita(sid){
+  const hoje=new Date().toISOString().slice(0,10);
+  const s=state.safras.find(x=>x.id===sid);
+  const t=s?talhaoOfSafra(s):null;
+
+  const registros=state.colheitas
+    .filter(c=>c.safra_id===sid)
+    .sort((a,b)=>(b.data_colheita||'').localeCompare(a.data_colheita||''));
+
+  const totalKg=registros.reduce((n,c)=>n+Number(c.peso_kg||0),0);
+  const plantas=Number(s?.numero_plantas||0);
+  const area=Number(t?.area_ha||0);
+
+  const historico=registros.length
+    ?registros.map(c=>`
+      <div class="card">
+        <h4>${Number(c.peso_kg||0).toLocaleString('pt-BR')} kg</h4>
+        <div class="meta">Data: ${dateBR(c.data_colheita)}</div>
+        ${c.quantidade_frutos
+          ?`<div class="meta">Frutos: ${Number(c.quantidade_frutos).toLocaleString('pt-BR')}</div>`
+          :''
+        }
+        ${c.observacoes
+          ?`<div class="meta">${esc(c.observacoes)}</div>`
+          :''
+        }
+      </div>
+    `).join('')
+    :'<div class="empty">Nenhuma colheita registrada nesta lavoura.</div>';
+
+ modal('Nova Colheita',`
+    <input type="hidden" name="safra_id" value="${sid}">
+
+    <div class="field">
+      <label>Talhão</label>
+      <input value="${esc(t?.nome||'—')}" disabled>
+    </div>
+
+    <div class="row2">
+      <div class="field">
+        <label>Data da colheita</label>
+        <input name="data_colheita" type="date" value="${hoje}" required>
+      </div>
+
+      <div class="field">
+        <label>Peso colhido (kg)</label>
+        <input id="pesoColheita" name="peso_kg"
+               type="number" step="0.001" required>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Quantidade de frutos (opcional)</label>
+      <input id="frutosColheita" name="quantidade_frutos" type="number">
+    </div>
+
+    <div class="field">
+      <label>Observações</label>
+      <textarea name="observacoes"></textarea>
+    </div>
+
+    <div class="card">
+      <h4>Produtividade calculada</h4>
+      <div id="calcColheita" class="meta">
+        Informe o peso da colheita.
+      </div>
+    </div>
+
+    <h3>Resumo</h3>
+    <div class="meta">Total já colhido: ${totalKg.toLocaleString('pt-BR')} kg</div>
+    <div class="meta">Número de colheitas: ${registros.length}</div>
+
+    <h3>Histórico de colheitas</h3>
+    ${historico}
+  `,submitSimple('colheitas'));
+
+  setTimeout(()=>{
+    const peso=$('#pesoColheita');
+    const frutos=$('#frutosColheita');
+    const calc=$('#calcColheita');
+
+    function atualizar(){
+      const kg=Number(peso?.value||0);
+      const qtd=Number(frutos?.value||0);
+      const porPlanta=plantas?kg/plantas:0;
+      const tha=area?kg/area/1000:0;
+      const pesoMedio=qtd?kg/qtd:0;
+
+      calc.innerHTML=
+        `${plantas?porPlanta.toFixed(3).replace('.',',')+' kg/planta<br>':''}`+
+        `${area?tha.toFixed(2).replace('.',',')+' t/ha<br>':''}`+
+        `${qtd?'Peso médio: '+pesoMedio.toFixed(3).replace('.',',')+' kg/fruto':''}`;
+    }
+
+    if(peso)peso.oninput=atualizar;
+    if(frutos)frutos.oninput=atualizar;
+  },0);
+}
 function openForm(type,sid){
  if(type==='produtor')return modal('Novo produtor',`<div class="field"><label>Nome</label><input name="nome" required></div><div class="row2"><div class="field"><label>Telefone</label><input name="telefone"></div><div class="field"><label>CPF/CNPJ</label><input name="cpf_cnpj"></div></div><div class="row2"><div class="field"><label>Município</label><input name="municipio"></div><div class="field"><label>Estado</label><input name="estado" value="AM"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('produtores'));
  if(type==='propriedade')return modal('Nova propriedade',`<div class="field"><label>Produtor</label><select name="produtor_id" required><option value="">Selecione</option>${opts(state.produtores)}</select></div><div class="field"><label>Nome da propriedade</label><input name="nome" required></div><div class="row2"><div class="field"><label>Município</label><input name="municipio"></div><div class="field"><label>Área total (ha)</label><input name="area_total_ha" type="number" step="0.01"></div></div><div class="field"><label>Comunidade</label><input name="comunidade"></div>`,submitSimple('propriedades'));
  if(type==='talhao')return modal('Novo talhão',`<div class="field"><label>Propriedade</label><select name="propriedade_id" required><option value="">Selecione</option>${opts(state.propriedades)}</select></div><div class="row2"><div class="field"><label>Nome</label><input name="nome" required placeholder="Talhão 01"></div><div class="field"><label>Área (ha)</label><input name="area_ha" type="number" step="0.01"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('talhoes'));
  if(type==='safra')return modal('Nova lavoura',`<div class="field"><label>Talhão</label><select name="talhao_id" required><option value="">Selecione</option>${state.talhoes.map(t=>`<option value="${t.id}">${esc(nameBy(state.propriedades,t.propriedade_id))} • ${esc(t.nome)}</option>`).join('')}</select></div><div class="row2"><div class="field"><label>Cultura</label><input name="cultura" required placeholder="Maracujá"></div><div class="field"><label>Variedade</label><input name="variedade"></div></div><div class="row2"><div class="field"><label>Data de plantio</label><input name="data_plantio" type="date"></div><div class="field"><label>Nº de plantas</label><input name="numero_plantas" type="number"></div></div><div class="row2"><div class="field"><label>Espaçamento linhas (m)</label><input name="espacamento_linhas_m" type="number" step="0.01"></div><div class="field"><label>Espaçamento plantas (m)</label><input name="espacamento_plantas_m" type="number" step="0.01"></div></div>`,submitSimple('safras'));
+ if(type==='adubacao')return openAdubacao(sid);
  if(type==='adubacao')return modal('Registrar adubação',`<input type="hidden" name="safra_id" value="${sid}"><div class="row2"><div class="field"><label>Data</label><input name="data_aplicacao" type="date" value="${new Date().toISOString().slice(0,10)}" required></div><div class="field"><label>Tipo</label><select name="tipo"><option>Cobertura</option><option>Foliar</option><option>Plantio</option><option>Fertirrigação</option></select></div></div><div class="field"><label>Produto</label><input name="produto" required></div><div class="row2"><div class="field"><label>Dose</label><input name="dose" type="number" step="0.001"></div><div class="field"><label>Unidade</label><input name="unidade_dose" placeholder="g/planta, kg/ha"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('adubacoes'));
+ if(type==='aplicacao')return openAplicacao(sid);
  if(type==='aplicacao')return modal('Registrar aplicação',`<input type="hidden" name="safra_id" value="${sid}"><div class="row2"><div class="field"><label>Data</label><input name="data_aplicacao" type="date" value="${new Date().toISOString().slice(0,10)}" required></div><div class="field"><label>Finalidade</label><select name="finalidade"><option>Inseticida</option><option>Fungicida</option><option>Acaricida</option><option>Bactericida</option><option>Herbicida</option><option>Biológico</option><option>Outro</option></select></div></div><div class="field"><label>Produto comercial</label><input name="produto_comercial" required></div><div class="field"><label>Ingrediente ativo</label><input name="ingrediente_ativo"></div><div class="row2"><div class="field"><label>Sistema</label><select name="sistema_grupo"><option value="">—</option><option>IRAC</option><option>FRAC</option><option>HRAC</option></select></div><div class="field"><label>Grupo MoA</label><input name="grupo_moa" placeholder="Ex.: 11, 3A"></div></div><div class="row2"><div class="field"><label>Dose</label><input name="dose" type="number" step="0.001"></div><div class="field"><label>Unidade</label><input name="unidade_dose" placeholder="mL/100 L"></div></div><div class="field"><label>Alvo</label><input name="alvo" placeholder="Lagarta, antracnose..."></div>`,submitSimple('aplicacoes'));
+ if(type==='colheita')return openColheita(sid);
  if(type==='colheita')return modal('Registrar colheita',`<input type="hidden" name="safra_id" value="${sid}"><div class="row2"><div class="field"><label>Data</label><input name="data_colheita" type="date" value="${new Date().toISOString().slice(0,10)}" required></div><div class="field"><label>Peso (kg)</label><input name="peso_kg" type="number" step="0.001" required></div></div><div class="row2"><div class="field"><label>Quantidade de frutos</label><input name="quantidade_frutos" type="number"></div><div class="field"><label>Preço/kg (R$)</label><input name="preco_kg" type="number" step="0.01"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('colheitas'));
 }
 function formObj(form){const o={};for(const [k,v] of new FormData(form)){if(v!=='')o[k]=v}['area_total_ha','area_ha','espacamento_linhas_m','espacamento_plantas_m','dose','peso_kg','preco_kg','numero_plantas','quantidade_frutos'].forEach(k=>{if(o[k]!==undefined)o[k]=Number(o[k])});return o}
