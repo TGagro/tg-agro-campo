@@ -144,31 +144,62 @@ async function syncQueue(){if(!navigator.onLine||!state.session)return;let q=JSO
 function openAdubacao(sid){
   const hoje=new Date().toISOString().slice(0,10);
 
+  function itensAdub(a){
+    try{
+      const j=JSON.parse(a.produto||'');
+      if(Array.isArray(j)){
+        return j.map(x=>({
+          produto:x.produto||'',
+          dose:x.dose??'',
+          unidade:x.unidade||x.unidade_dose||''
+        })).filter(x=>x.produto);
+      }
+    }catch(_){}
+
+    return a.produto?[{
+      produto:a.produto,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
   const registros=state.adubacoes
     .filter(a=>a.safra_id===sid)
     .sort((a,b)=>(b.data_aplicacao||'').localeCompare(a.data_aplicacao||''));
 
   const produtos=[...new Set(
-    state.adubacoes.map(a=>a.produto).filter(Boolean)
+    state.adubacoes
+      .flatMap(a=>itensAdub(a).map(i=>i.produto))
+      .filter(Boolean)
   )].sort();
 
   const historico=registros.length
     ?registros.map(a=>{
       const programada=(a.data_aplicacao||'')>hoje;
+      const itens=itensAdub(a);
+
       return `
         <div class="card">
           <div class="card-row">
             <div>
               <h4>${esc(a.tipo||'Adubação')}</h4>
-              <div class="meta">${esc(a.produto||'Produto não informado')}</div>
-              <div class="meta">
-                Dose: ${esc(a.dose??'—')} ${esc(a.unidade_dose||'')}
-              </div>
+
+              ${itens.map(i=>`
+                <div class="meta">
+                  • ${esc(i.produto)} — ${esc(i.dose||'-')} ${esc(i.unidade||'')}
+                </div>
+              `).join('')}
+
               <div class="meta">
                 Data: ${dateBR(a.data_aplicacao)}
               </div>
-              ${a.observacoes?`<div class="meta">${esc(a.observacoes)}</div>`:''}
+
+              ${a.observacoes
+                ?`<div class="meta">${esc(a.observacoes)}</div>`
+                :''
+              }
             </div>
+
             <span class="pill ${programada?'gold':''}">
               ${programada?'Programada':'Realizada'}
             </span>
@@ -176,60 +207,261 @@ function openAdubacao(sid){
         </div>
       `;
     }).join('')
-    :'<div class="empty">Nenhuma adubação registrada nesta lavoura.</div>';
+    :'<div class="empty">Nenhuma adubação registrada</div>';
 
-  return modal('Adubação da lavoura',`
-    <input type="hidden" name="safra_id" value="${sid}">
+  const linhaProduto=()=>`
+    <div class="adub-prod-row"
+         style="border:1px solid #ddd;border-radius:10px;padding:10px;margin-bottom:10px">
+
+      <div class="field">
+        <label>Produto / ingrediente</label>
+        <input
+          class="adub-produto"
+          list="produtosAdubacao"
+          placeholder="Ex.: MAP, KCl, esterco"
+          required>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Dose</label>
+          <input
+            class="adub-dose"
+            type="number"
+            step="any"
+            min="0"
+            required>
+        </div>
+
+        <div class="field">
+          <label>Unidade</label>
+          <input
+            class="adub-unidade"
+            placeholder="Ex.: g/planta, kg/ha"
+            required>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="btn remove-adub-prod">
+        Remover produto
+      </button>
+    </div>
+  `;
+
+  modal('Adubação da lavoura',`
+
+    <input
+      type="hidden"
+      name="safra_id"
+      value="${esc(sid)}">
 
     <div class="row2">
+
       <div class="field">
         <label>Data da aplicação</label>
-        <input name="data_aplicacao" type="date" value="${hoje}" required>
+        <input
+          name="data_aplicacao"
+          type="date"
+          value="${hoje}"
+          required>
       </div>
 
       <div class="field">
         <label>Tipo</label>
+
         <select name="tipo" required>
           <option>Plantio</option>
           <option>Cobertura</option>
           <option>Foliar</option>
           <option>Fertirrigação</option>
         </select>
+
       </div>
     </div>
 
     <div class="field">
-      <label>Produto</label>
-      <input name="produto" list="produtosAdubacao" required
-             placeholder="Ex.: MAP, KCl, sulfato de amônio">
-      <datalist id="produtosAdubacao">
-        ${produtos.map(p=>`<option value="${esc(p)}">`).join('')}
-      </datalist>
-    </div>
 
-    <div class="row2">
-      <div class="field">
-        <label>Dose</label>
-        <input name="dose" type="number" step="0.001">
+      <label>Produtos / ingredientes</label>
+
+      <div id="adubProdutos">
+        ${linhaProduto()}
       </div>
 
-      <div class="field">
-        <label>Unidade</label>
-        <input name="unidade_dose" placeholder="g/planta, kg/ha, mL/L">
-      </div>
+      <button
+        type="button"
+        id="addAdubProduto"
+        class="btn">
+        + Adicionar produto
+      </button>
+
     </div>
+
+    <datalist id="produtosAdubacao">
+      ${produtos.map(p=>`
+        <option value="${esc(p)}"></option>
+      `).join('')}
+    </datalist>
 
     <div class="field">
       <label>Observações</label>
-      <textarea name="observacoes"
-                placeholder="Forma de aplicação, parcelamento, observações..."></textarea>
+
+      <textarea
+        name="observacoes"
+        placeholder="Forma de aplicação, detalhes, etc.">
+      </textarea>
     </div>
 
     <h3>Histórico e programação</h3>
-    ${historico}
-  `,submitSimple('adubacoes'));
-}
 
+    ${historico}
+
+  `,async e=>{
+
+    e.preventDefault();
+
+    const form=e.currentTarget;
+
+    const itens=[
+      ...form.querySelectorAll('.adub-prod-row')
+    ].map(r=>({
+
+      produto:
+        r.querySelector('.adub-produto')
+        .value.trim(),
+
+      dose:
+        r.querySelector('.adub-dose')
+        .value.trim(),
+
+      unidade:
+        r.querySelector('.adub-unidade')
+        .value.trim()
+
+    })).filter(i=>i.produto);
+
+    if(!itens.length){
+      toast('Adicione pelo menos um produto');
+      return;
+    }
+
+    const fd=new FormData(form);
+
+    const row={
+
+      safra_id:sid,
+
+      data_aplicacao:
+        fd.get('data_aplicacao'),
+
+      tipo:
+        fd.get('tipo'),
+
+      produto:
+        JSON.stringify(itens),
+
+      dose:
+        Number(itens[0].dose),
+
+      unidade_dose:
+        itens[0].unidade,
+
+      observacoes:
+        fd.get('observacoes')||null
+    };
+
+    const btn=
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    if(btn)btn.disabled=true;
+
+    try{
+
+      await insertRow(
+        'adubacoes',
+        row
+      );
+
+      closeModal();
+
+      await loadAll();
+
+      toast('Adubação salva');
+
+    }catch(err){
+
+      console.error(err);
+
+      toast(
+        'Erro ao salvar adubação'
+      );
+
+    }finally{
+
+      if(btn)btn.disabled=false;
+
+    }
+  });
+
+  setTimeout(()=>{
+
+    const wrap=
+      $('#adubProdutos');
+
+    const add=
+      $('#addAdubProduto');
+
+    if(add&&wrap){
+
+      add.onclick=()=>{
+
+        wrap.insertAdjacentHTML(
+          'beforeend',
+          linhaProduto()
+        );
+
+      };
+    }
+
+    if(wrap){
+
+      wrap.onclick=e=>{
+
+        const b=
+          e.target.closest(
+            '.remove-adub-prod'
+          );
+
+        if(!b)return;
+
+        const rows=
+          wrap.querySelectorAll(
+            '.adub-prod-row'
+          );
+
+        if(rows.length>1){
+
+          b.closest(
+            '.adub-prod-row'
+          ).remove();
+
+        }else{
+
+          b.closest(
+            '.adub-prod-row'
+          )
+          .querySelectorAll('input')
+          .forEach(i=>i.value='');
+
+        }
+      };
+    }
+
+  },0);
+}
 function openAplicacao(sid){
   const hoje=new Date().toISOString().slice(0,10);
 
