@@ -539,6 +539,84 @@ function openAplicacao(sid){
     </div>
 
     <div class="field">
+
+function openAplicacao(sid){
+  const hoje=new Date().toISOString().slice(0,10);
+
+  const registros=state.aplicacoes
+    .filter(a=>a.safra_id===sid)
+    .sort((a,b)=>(b.data_aplicacao||'').localeCompare(a.data_aplicacao||''));
+
+  const produtos=[...new Set(
+    state.aplicacoes.map(a=>a.produto_comercial).filter(Boolean)
+  )].sort();
+
+  const historico=registros.length
+    ?registros.map(a=>{
+      const programada=(a.data_aplicacao||'')>hoje;
+      return `
+        <div class="card">
+          <div class="card-row">
+            <div>
+              <h4>${esc(a.produto_comercial||'Produto não informado')}</h4>
+              <div class="meta">${esc(a.finalidade||'Aplicação')}</div>
+              ${a.ingrediente_ativo?`<div class="meta">Ingrediente ativo: ${esc(a.ingrediente_ativo)}</div>`:''}
+              ${a.alvo?`<div class="meta">Alvo: ${esc(a.alvo)}</div>`:''}
+              <div class="meta">
+                Dose: ${esc(a.dose??'—')} ${esc(a.unidade_dose||'')}
+              </div>
+              <div class="meta">
+                Data: ${dateBR(a.data_aplicacao)}
+              </div>
+              ${a.sistema_grupo||a.grupo_moa
+                ?`<div class="meta">${esc(a.sistema_grupo||'')} ${esc(a.grupo_moa||'')}</div>`
+                :''
+              }
+            </div>
+            <span class="pill ${programada?'gold':''}">
+              ${programada?'Programada':'Realizada'}
+            </span>
+          </div>
+        </div>
+      `;
+    }).join('')
+    :'<div class="empty">Nenhuma aplicação registrada nesta lavoura.</div>';
+
+  return modal('Aplicações / Borrifações',`
+    <input type="hidden" name="safra_id" value="${sid}">
+
+    <div class="row2">
+      <div class="field">
+        <label>Data da aplicação</label>
+        <input name="data_aplicacao" type="date" value="${hoje}" required>
+      </div>
+
+      <div class="field">
+        <label>Finalidade</label>
+        <select name="finalidade" required>
+          <option>Inseticida</option>
+          <option>Fungicida</option>
+          <option>Acaricida</option>
+          <option>Bactericida</option>
+          <option>Herbicida</option>
+          <option>Biológico</option>
+          <option>Outro</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Produto comercial</label>
+      <input name="produto_comercial"
+             list="produtosAplicacao"
+             required
+             placeholder="Nome do produto">
+      <datalist id="produtosAplicacao">
+        ${produtos.map(p=>`<option value="${esc(p)}">`).join('')}
+      </datalist>
+    </div>
+
+    <div class="field">
       <label>Ingrediente ativo</label>
       <input name="ingrediente_ativo">
     </div>
