@@ -669,127 +669,424 @@ if(editId){
   });
   },0);
 }
-
-
 function openAplicacao(sid){
   const hoje=new Date().toISOString().slice(0,10);
 
+  function itensAplic(a){
+    try{
+      const j=JSON.parse(a.produto_comercial||'');
+      if(Array.isArray(j)){
+        return j.map(x=>({
+          categoria:x.categoria||'',
+          produto:x.produto||'',
+          dose:x.dose??'',
+          unidade:x.unidade||x.unidade_dose||''
+        })).filter(x=>x.produto);
+      }
+    }catch(_){}
+
+    return a.produto_comercial?[{
+      categoria:a.finalidade||'Aplicação',
+      produto:a.produto_comercial,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
   const registros=state.aplicacoes
-    .filter(a=>a.safra_id===sid)
-    .sort((a,b)=>(b.data_aplicacao||'').localeCompare(a.data_aplicacao||''));
+    .filter(a=>String(a.safra_id)===String(sid))
+    .sort((a,b)=>(b.data_aplicacao||'')
+      .localeCompare(a.data_aplicacao||''));
 
   const produtos=[...new Set(
-    state.aplicacoes.map(a=>a.produto_comercial).filter(Boolean)
+    state.aplicacoes
+      .flatMap(a=>itensAplic(a).map(i=>i.produto))
+      .filter(Boolean)
   )].sort();
 
   const historico=registros.length
     ?registros.map(a=>{
       const programada=(a.data_aplicacao||'')>hoje;
+      const itens=itensAplic(a);
+
       return `
         <div class="card">
           <div class="card-row">
             <div>
-              <h4>${esc(a.produto_comercial||'Produto não informado')}</h4>
-              <div class="meta">${esc(a.finalidade||'Aplicação')}</div>
-              ${a.ingrediente_ativo?`<div class="meta">Ingrediente ativo: ${esc(a.ingrediente_ativo)}</div>`:''}
-              ${a.alvo?`<div class="meta">Alvo: ${esc(a.alvo)}</div>`:''}
-              <div class="meta">
-                Dose: ${esc(a.dose??'—')} ${esc(a.unidade_dose||'')}
-              </div>
+
+              <h4>
+                ${itens.length>1
+                  ?'Coquetel'
+                  :esc(a.finalidade||'Aplicação')}
+              </h4>
+
+              ${itens.map(i=>`
+                <div class="meta">
+                  • <strong>${esc(i.categoria||'Produto')}:</strong>
+                  ${esc(i.produto)}
+                  — ${esc(i.dose||'-')} ${esc(i.unidade||'')}
+                </div>
+              `).join('')}
+
+              ${a.alvo
+                ?`<div class="meta">Alvo: ${esc(a.alvo)}</div>`
+                :''
+              }
+
               <div class="meta">
                 Data: ${dateBR(a.data_aplicacao)}
               </div>
-              ${a.sistema_grupo||a.grupo_moa
-                ?`<div class="meta">${esc(a.sistema_grupo||'')} ${esc(a.grupo_moa||'')}</div>`
-                :''
-              }
+
             </div>
+
             <span class="pill ${programada?'gold':''}">
               ${programada?'Programada':'Realizada'}
             </span>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:10px">
+
+            <button
+              type="button"
+              class="btn edit-aplic"
+              data-id="${esc(a.id)}">
+              Editar
+            </button>
+
+            <button
+              type="button"
+              class="btn btn-danger delete-aplic"
+              data-id="${esc(a.id)}">
+              Excluir
+            </button>
+
           </div>
         </div>
       `;
     }).join('')
     :'<div class="empty">Nenhuma aplicação registrada nesta lavoura.</div>';
 
-  return modal('Aplicações / Borrifações',`
-    <input type="hidden" name="safra_id" value="${sid}">
+  const blocoProduto=categoria=>`
+    <div
+      class="aplic-prod-row"
+      data-categoria="${categoria}"
+      style="border:1px solid #ddd;border-radius:10px;padding:10px;margin-bottom:10px">
 
-    <div class="row2">
+      <h4>${categoria}</h4>
+
       <div class="field">
-        <label>Data da aplicação</label>
-        <input name="data_aplicacao" type="date" value="${hoje}" required>
+        <label>Produto</label>
+
+        <input
+          class="aplic-produto"
+          list="produtosAplicacao"
+          placeholder="Nome do produto"
+          required>
       </div>
 
-      <div class="field">
-        <label>Finalidade</label>
-        <select name="finalidade" required>
-          <option>Inseticida</option>
-          <option>Fungicida</option>
-          <option>Acaricida</option>
-          <option>Bactericida</option>
-          <option>Herbicida</option>
-          <option>Biológico</option>
-          <option>Outro</option>
-        </select>
+      <div class="row2">
+
+        <div class="field">
+          <label>Dose</label>
+
+          <input
+            class="aplic-dose"
+            type="number"
+            step="any"
+            min="0"
+            required>
+        </div>
+
+        <div class="field">
+          <label>Unidade</label>
+
+          <input
+            class="aplic-unidade"
+            placeholder="Ex.: mL/20 L, mL/100 L, L/ha"
+            required>
+        </div>
+
       </div>
     </div>
+  `;
+
+  modal('Borrifação / Coquetel',`
+
+    <input
+      type="hidden"
+      name="safra_id"
+      value="${esc(sid)}">
 
     <div class="field">
-      <label>Produto comercial</label>
-      <input name="produto_comercial"
-             list="produtosAplicacao"
-             required
-             placeholder="Nome do produto">
-      <datalist id="produtosAplicacao">
-        ${produtos.map(p=>`<option value="${esc(p)}">`).join('')}
-      </datalist>
+      <label>Data da aplicação</label>
+
+      <input
+        name="data_aplicacao"
+        type="date"
+        value="${hoje}"
+        required>
     </div>
+
+    <h3>Produtos do coquetel</h3>
+
+    ${blocoProduto('Fungicida')}
+
+    ${blocoProduto('Acaricida')}
+
+    ${blocoProduto('Inseticida')}
+
+    <datalist id="produtosAplicacao">
+      ${produtos.map(p=>`
+        <option value="${esc(p)}"></option>
+      `).join('')}
+    </datalist>
 
     <div class="field">
-      <label>Ingrediente ativo</label>
-      <input name="ingrediente_ativo">
+      <label>Alvo / observação</label>
+
+      <input
+        name="alvo"
+        placeholder="Ex.: antracnose, ácaro, lagartas">
     </div>
 
-    <div class="row2">
-      <div class="field">
-        <label>Sistema</label>
-        <select name="sistema_grupo">
-          <option value="">—</option>
-          <option>IRAC</option>
-          <option>FRAC</option>
-          <option>HRAC</option>
-        </select>
-      </div>
+    <h3>Histórico e programação</h3>
 
-      <div class="field">
-        <label>Grupo MoA</label>
-        <input name="grupo_moa" placeholder="Ex.: 11, 3A">
-      </div>
-    </div>
+    ${historico}
 
-    <div class="row2">
-      <div class="field">
-        <label>Dose</label>
-        <input name="dose" type="number" step="0.001">
-      </div>
+  `,async e=>{
 
-      <div class="field">
-        <label>Unidade</label>
-        <input name="unidade_dose" placeholder="mL/100 L, L/ha">
-      </div>
-    </div>
+    e.preventDefault();
 
-<div class="field">
-  <label>Alvo</label>
-  <input name="alvo" placeholder="Lagarta, antracnose...">
-</div>
+    const form=e.currentTarget;
 
-<h3>Histórico e programação</h3>
-${historico}
-`,submitSimple('aplicacoes'));
-}
+    const itens=[
+      ...form.querySelectorAll('.aplic-prod-row')
+    ].map(r=>({
+
+      categoria:r.dataset.categoria,
+
+      produto:
+        r.querySelector('.aplic-produto')
+        .value.trim(),
+
+      dose:
+        r.querySelector('.aplic-dose')
+        .value.trim(),
+
+      unidade:
+        r.querySelector('.aplic-unidade')
+        .value.trim()
+
+    }));
+
+    const fd=new FormData(form);
+
+    const row={
+
+      safra_id:sid,
+
+      data_aplicacao:
+        fd.get('data_aplicacao'),
+
+      finalidade:'Coquetel',
+
+      produto_comercial:
+        JSON.stringify(itens),
+
+      dose:
+        Number(itens[0].dose),
+
+      unidade_dose:
+        itens[0].unidade,
+
+      alvo:
+        fd.get('alvo')||null
+    };
+
+    const btn=
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    if(btn)btn.disabled=true;
+
+    try{
+
+      const editId=
+        form.dataset.editId;
+
+      if(editId){
+
+        await updateRow(
+          'aplicacoes',
+          editId,
+          row
+        );
+
+      }else{
+
+        await insertRow(
+          'aplicacoes',
+          row
+        );
+      }
+
+      closeModal();
+
+      await loadAll();
+
+      toast(
+        editId
+          ?'Coquetel atualizado'
+          :'Coquetel salvo'
+      );
+
+    }catch(err){
+
+      console.error(err);
+
+      toast(
+        'Erro ao salvar coquetel'
+      );
+
+    }finally{
+
+      if(btn)btn.disabled=false;
+    }
+  });
+
+  setTimeout(()=>{
+
+    document
+      .querySelectorAll('.delete-aplic')
+      .forEach(btn=>{
+
+        btn.onclick=async()=>{
+
+          const id=btn.dataset.id;
+
+          if(!confirm(
+            'Excluir este coquetel/aplicação?'
+          ))return;
+
+          try{
+
+            await deleteRow(
+              'aplicacoes',
+              id
+            );
+
+            closeModal();
+
+            await loadAll();
+
+            toast(
+              'Aplicação excluída'
+            );
+
+          }catch(err){
+
+            console.error(err);
+
+            toast(
+              'Erro ao excluir aplicação'
+            );
+          }
+        };
+      });
+
+    document
+      .querySelectorAll('.edit-aplic')
+      .forEach(btn=>{
+
+        btn.onclick=()=>{
+
+          const a=
+            state.aplicacoes.find(
+              x=>String(x.id)===
+                 String(btn.dataset.id)
+            );
+
+          if(!a)return;
+
+          const form=
+            btn.closest('form');
+
+          if(!form)return;
+
+          form.dataset.editId=a.id;
+
+          form
+            .querySelector(
+              '[name="data_aplicacao"]'
+            ).value=
+              a.data_aplicacao||'';
+
+          form
+            .querySelector(
+              '[name="alvo"]'
+            ).value=
+              a.alvo||'';
+
+          const itens=
+            itensAplic(a);
+
+          [
+            ...form.querySelectorAll(
+              '.aplic-prod-row'
+            )
+          ].forEach(r=>{
+
+            const categoria=
+              r.dataset.categoria;
+
+            const item=
+              itens.find(i=>
+                String(i.categoria)
+                  .toLowerCase()===
+                String(categoria)
+                  .toLowerCase()
+              )||{};
+
+            r.querySelector(
+              '.aplic-produto'
+            ).value=
+              item.produto||'';
+
+            r.querySelector(
+              '.aplic-dose'
+            ).value=
+              item.dose??'';
+
+            r.querySelector(
+              '.aplic-unidade'
+            ).value=
+              item.unidade||'';
+          });
+
+          const salvar=
+            form.querySelector(
+              'button[type="submit"]'
+            );
+
+          if(salvar){
+            salvar.textContent=
+              'Salvar alterações';
+          }
+
+          form
+            .querySelector(
+              '[name="data_aplicacao"]'
+            )
+            .scrollIntoView({
+              behavior:'smooth',
+              block:'center'
+            });
+        };
+      });
+
+  },0);
+        }
 
 function openColheita(sid){
   const hoje=new Date().toISOString().slice(0,10);
