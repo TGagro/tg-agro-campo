@@ -651,6 +651,8 @@ function openAdubacao(sid){
   </button>
 
 </div>
+</div>
+</div>
       `;
     }).join('')
     :'<div class="empty">Nenhuma adubação registrada</div>';
