@@ -204,6 +204,21 @@ function openAdubacao(sid){
               ${programada?'Programada':'Realizada'}
             </span>
           </div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+  <button
+    type="button"
+    class="btn edit-adub"
+    data-id="${esc(a.id)}">
+    Editar
+  </button>
+
+  <button
+    type="button"
+    class="btn btn-danger delete-adub"
+    data-id="${esc(a.id)}">
+    Excluir
+  </button>
+</div>
         </div>
       `;
     }).join('')
@@ -380,16 +395,19 @@ function openAdubacao(sid){
 
     try{
 
-      await insertRow(
-        'adubacoes',
-        row
-      );
+      const editId=form.dataset.editId;
+
+if(editId){
+  await updateRow('adubacoes',editId,row);
+}else{
+  await insertRow('adubacoes',row);
+}
 
       closeModal();
 
       await loadAll();
 
-      toast('Adubação salva');
+      toast(editId ? 'Adubação atualizada' : 'Adubação salva');
 
     }catch(err){
 
@@ -459,7 +477,80 @@ function openAdubacao(sid){
         }
       };
     }
+  document.querySelectorAll('.delete-adub').forEach(btn=>{
+    btn.onclick=async()=>{
+      const id=btn.dataset.id;
 
+      if(!confirm('Excluir esta adubação?'))return;
+
+      try{
+        await deleteRow('adubacoes',id);
+        closeModal();
+        await loadAll();
+        toast('Adubação excluída');
+      }catch(err){
+        console.error(err);
+        toast('Erro ao excluir adubação');
+      }
+    };
+  });
+
+  document.querySelectorAll('.edit-adub').forEach(btn=>{
+    btn.onclick=()=>{
+      const a=state.adubacoes.find(
+        x=>String(x.id)===String(btn.dataset.id)
+      );
+
+      if(!a)return;
+
+      const form=btn.closest('form');
+      if(!form)return;
+
+      form.dataset.editId=a.id;
+
+      form.querySelector('[name="data_aplicacao"]').value=
+        a.data_aplicacao||'';
+
+      form.querySelector('[name="tipo"]').value=
+        a.tipo||'Plantio';
+
+      form.querySelector('[name="observacoes"]').value=
+        a.observacoes||'';
+
+      const itens=itensAdub(a);
+
+      wrap.innerHTML=
+        itens.length
+          ?itens.map(()=>linhaProduto()).join('')
+          :linhaProduto();
+
+      [...wrap.querySelectorAll('.adub-prod-row')]
+        .forEach((r,i)=>{
+          const item=itens[i]||{};
+
+          r.querySelector('.adub-produto').value=
+            item.produto||'';
+
+          r.querySelector('.adub-dose').value=
+            item.dose??'';
+
+          r.querySelector('.adub-unidade').value=
+            item.unidade||'';
+        });
+
+      const salvar=form.querySelector('button[type="submit"]');
+
+      if(salvar){
+        salvar.textContent='Salvar alterações';
+      }
+
+      form.querySelector('[name="data_aplicacao"]')
+        .scrollIntoView({
+          behavior:'smooth',
+          block:'center'
+        });
+    };
+  });
   },0);
 }
 
