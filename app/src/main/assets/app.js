@@ -366,6 +366,13 @@ const aplicacoesRealizadas=aplicacoesProd.filter(
             <div class="meta">
               Data: ${dateBR(a.data_aplicacao)}
             </div>
+            <button
+  type="button"
+  class="btn btn-primary btn-block concluir-ficha-adub"
+  data-id="${esc(a.id)}"
+  style="margin-top:10px;">
+  ✓ Atividade cumprida
+</button>
           </div>
         `).join('')}
 
@@ -380,6 +387,13 @@ const aplicacoesRealizadas=aplicacoesProd.filter(
             <div class="meta">
               Data: ${dateBR(a.data_aplicacao)}
             </div>
+            <button
+  type="button"
+  class="btn btn-primary btn-block concluir-ficha-aplic"
+  data-id="${esc(a.id)}"
+  style="margin-top:10px;">
+  ✓ Atividade cumprida
+</button>
           </div>
         `).join('')}
       `
@@ -412,7 +426,49 @@ const aplicacoesRealizadas=aplicacoesProd.filter(
   $('#editarDadosProdutor').onclick=()=>{
     closeModal();
     editProdutor(id);
+  }; 
+ document.querySelectorAll('.concluir-ficha-adub').forEach(btn=>{
+  btn.onclick=async()=>{
+    const adubId=btn.dataset.id;
+
+    if(!confirm('Marcar esta atividade como cumprida?'))return;
+
+    try{
+      await updateRow('adubacoes',adubId,{
+        status:'realizada',
+        data_realizacao:hoje
+      });
+
+      await loadAll();
+      viewProdutor(id);
+      toast('✓ Atividade cumprida');
+    }catch(err){
+      console.error(err);
+      toast('Erro ao concluir atividade');
+    }
   };
+});
+ document.querySelectorAll('.concluir-ficha-aplic').forEach(btn=>{
+  btn.onclick=async()=>{
+    const aplicId=btn.dataset.id;
+
+    if(!confirm('Marcar esta borrifação como cumprida?'))return;
+
+    try{
+      await updateRow('aplicacoes',aplicId,{
+        status:'realizada',
+        data_realizacao:hoje
+      });
+
+      await loadAll();
+      viewProdutor(id);
+      toast('✓ Atividade cumprida');
+    }catch(err){
+      console.error(err);
+      toast('Erro ao concluir borrifação');
+    }
+  };
+});
 }
 function editProdutor(id){
  const p=state.produtores.find(x=>x.id===id);
