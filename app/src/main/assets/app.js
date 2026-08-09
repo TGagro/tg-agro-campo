@@ -124,21 +124,29 @@ function itensAplicFicha(a){
   }]:[];
 }
 
+function statusManejo(a){
+  return a.status||
+    ((a.data_aplicacao||'')>hoje
+      ?'programada'
+      :'realizada');
+}
+
 const proximasAdubacoes=adubacoesProd.filter(
-  a=>(a.data_aplicacao||'')>hoje
+  a=>statusManejo(a)==='programada'
 );
 
 const proximasAplicacoes=aplicacoesProd.filter(
-  a=>(a.data_aplicacao||'')>hoje
+  a=>statusManejo(a)==='programada'
 );
 
 const adubacoesRealizadas=adubacoesProd.filter(
-  a=>(a.data_aplicacao||'')<=hoje
+  a=>statusManejo(a)==='realizada'
 );
 
 const aplicacoesRealizadas=aplicacoesProd.filter(
-  a=>(a.data_aplicacao||'')<=hoje
+  a=>statusManejo(a)==='realizada'
 );
+
   const w=$('#modalWrap');
   w.className='modal-backdrop';
 
@@ -534,7 +542,10 @@ function openAdubacao(sid){
 
   const historico=registros.length
     ?registros.map(a=>{
-      const programada=(a.data_aplicacao||'')>hoje;
+      const programada=
+  (a.status||
+    ((a.data_aplicacao||'')>hoje?'programada':'realizada')
+  )!=='realizada';
       const itens=itensAdub(a);
 
       return `
@@ -558,12 +569,17 @@ function openAdubacao(sid){
                 :''
               }
             </div>
+<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
 
-            <span class="pill ${programada?'gold':''}">
-              ${programada?'Programada':'Realizada'}
-            </span>
-          </div>
-          <div style="display:flex;gap:8px;margin-top:10px">
+  ${programada?`
+    <button
+      type="button"
+      class="btn concluir-adub"
+      data-id="${esc(a.id)}">
+      ✓ Marcar como realizado
+    </button>
+  `:''}
+
   <button
     type="button"
     class="btn edit-adub"
@@ -577,8 +593,8 @@ function openAdubacao(sid){
     data-id="${esc(a.id)}">
     Excluir
   </button>
+
 </div>
-        </div>
       `;
     }).join('')
     :'<div class="empty">Nenhuma adubação registrada</div>';
@@ -728,7 +744,15 @@ function openAdubacao(sid){
 
       data_aplicacao:
         fd.get('data_aplicacao'),
+status:
+  fd.get('data_aplicacao')>hoje
+    ?'programada'
+    :'realizada',
 
+data_realizacao:
+  fd.get('data_aplicacao')>hoje
+    ?null
+    :fd.get('data_aplicacao'),
       tipo:
         fd.get('tipo'),
 
@@ -836,7 +860,30 @@ if(editId){
         }
       };
     }
-  document.querySelectorAll('.delete-adub').forEach(btn=>{
+  document.querySelectorAll('.concluir-adub').forEach(btn=>{
+  btn.onclick=async()=>{
+    const id=btn.dataset.id;
+
+    if(!confirm('Marcar esta adubação como realizada?'))return;
+
+    try{
+      await updateRow('adubacoes',id,{
+        status:'realizada',
+        data_realizacao:hoje
+      });
+
+      closeModal();
+      await loadAll();
+
+      toast('Adubação marcada como realizada');
+
+    }catch(err){
+      console.error(err);
+      toast('Erro ao concluir adubação');
+    }
+  };
+});
+   document.querySelectorAll('.delete-adub').forEach(btn=>{
     btn.onclick=async()=>{
       const id=btn.dataset.id;
 
