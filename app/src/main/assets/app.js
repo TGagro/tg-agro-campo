@@ -788,7 +788,32 @@ function openForm(type,sid){
 function formObj(form){const o={};for(const [k,v] of new FormData(form)){if(v!=='')o[k]=v}['area_total_ha','area_ha','espacamento_linhas_m','espacamento_plantas_m','dose','peso_kg','preco_kg','numero_plantas','quantidade_frutos'].forEach(k=>{if(o[k]!==undefined)o[k]=Number(o[k])});return o}
 function submitSimple(table){return async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await insertRow(table,formObj(e.currentTarget));closeModal();await loadAll();toast('Salvo com sucesso')}catch(err){console.error(err);toast('Erro ao salvar. Confira os dados.')}finally{btn.disabled=false}}}
 function go(page){$$('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===page));scrollTo({top:0,behavior:'smooth'})}
-async function boot(){let s=JSON.parse(localStorage.getItem('tg_session')||'null');if(s){state.session=s;if(!await refreshSession()){saveSession(null);state.session=null}else showApp()}else showLogin()}
+async function boot(){
+  let s=JSON.parse(localStorage.getItem('tg_session')||'null');
+
+  if(!s){
+    showLogin();
+    return;
+  }
+
+  state.session=s;
+
+  if(!navigator.onLine){
+    loadCache();
+    renderAll();
+    showApp();
+    return;
+  }
+
+  if(await refreshSession()){
+    await loadAll();
+    showApp();
+  }else{
+    saveSession(null);
+    state.session=null;
+    showLogin();
+  }
+}
 function showLogin(){$('#loginView').classList.remove('hidden');$('#app').classList.add('hidden')}
 function showApp(){$('#loginView').classList.add('hidden');$('#app').classList.remove('hidden');$('#userLabel').textContent=state.session?.user?.email||'Gestão rural';loadAll();syncQueue()}
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#loginMsg');m.textContent='Entrando...';try{const s=await login($('#email').value.trim(),$('#password').value);state.session=s;saveSession(s);m.textContent='';showApp()}catch(err){console.error(err);m.textContent='Não foi possível entrar. Confira e-mail e senha.'}})
