@@ -47,6 +47,122 @@ async function deleteRow(table,id){
    method:'DELETE'
  });
 }
+function viewProdutor(id){
+  const p=state.produtores.find(x=>String(x.id)===String(id));
+  if(!p)return;
+
+  const props=state.propriedades.filter(
+    x=>String(x.produtor_id)===String(id)
+  );
+
+  const talhoes=state.talhoes.filter(
+    t=>props.some(pr=>String(pr.id)===String(t.propriedade_id))
+  );
+
+  const safras=state.safras.filter(
+    s=>talhoes.some(t=>String(t.id)===String(s.talhao_id))
+  );
+
+  const w=$('#modalWrap');
+  w.className='modal-backdrop';
+
+  w.innerHTML=`
+  <div class="modal">
+
+    <div class="modal-head">
+      <h3>Ficha do produtor</h3>
+      <button class="close" id="closeModal">×</button>
+    </div>
+
+    <div class="card">
+      <h4>${esc(p.nome||'Produtor')}</h4>
+
+      <div class="meta">
+        ${esc(p.municipio||'')}
+        ${p.estado?' • '+esc(p.estado):''}
+      </div>
+
+      <div class="meta">${esc(p.telefone||'Sem telefone')}</div>
+
+      <div class="meta">
+        CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}
+      </div>
+
+      ${p.observacoes
+        ?`<div class="meta" style="margin-top:8px">
+            ${esc(p.observacoes)}
+          </div>`
+        :''
+      }
+    </div>
+
+    <div class="card">
+      <h4>Resumo</h4>
+      <div class="meta">Propriedades: ${props.length}</div>
+      <div class="meta">Talhões: ${talhoes.length}</div>
+      <div class="meta">Lavouras: ${safras.length}</div>
+    </div>
+
+    <h3>Propriedades e lavouras</h3>
+
+    ${
+      props.length
+      ?props.map(pr=>{
+
+        const ts=talhoes.filter(
+          t=>String(t.propriedade_id)===String(pr.id)
+        );
+
+        const ss=safras.filter(
+          s=>ts.some(t=>String(t.id)===String(s.talhao_id))
+        );
+
+        return `
+        <div class="card">
+
+          <h4>${esc(pr.nome||'Propriedade')}</h4>
+
+          <div class="meta">
+            ${esc(pr.municipio||'')}
+            ${pr.area_total_ha
+              ?' • '+Number(pr.area_total_ha).toLocaleString('pt-BR')+' ha'
+              :''
+            }
+          </div>
+
+          ${
+            ss.length
+            ?ss.map(s=>`
+              <div class="meta" style="margin-top:6px">
+                • ${esc(s.cultura||'Lavoura')}
+                ${s.variedade?' — '+esc(s.variedade):''}
+              </div>
+            `).join('')
+            :'<div class="meta">Nenhuma lavoura cadastrada.</div>'
+          }
+
+        </div>
+        `;
+      }).join('')
+      :'<div class="empty">Nenhuma propriedade cadastrada.</div>'
+    }
+
+    <button
+      class="btn btn-primary btn-block"
+      type="button"
+      id="editarDadosProdutor">
+      EDITAR DADOS
+    </button>
+
+  </div>`;
+
+  $('#closeModal').onclick=closeModal;
+
+  $('#editarDadosProdutor').onclick=()=>{
+    closeModal();
+    editProdutor(id);
+  };
+}
 function editProdutor(id){
  const p=state.produtores.find(x=>x.id===id);
  if(!p)return;
