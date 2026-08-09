@@ -62,7 +62,83 @@ function viewProdutor(id){
   const safras=state.safras.filter(
     s=>talhoes.some(t=>String(t.id)===String(s.talhao_id))
   );
+const hoje=new Date().toISOString().slice(0,10);
 
+const safraIds=new Set(
+  safras.map(s=>String(s.id))
+);
+
+const adubacoesProd=state.adubacoes
+  .filter(a=>safraIds.has(String(a.safra_id)))
+  .sort((a,b)=>
+    (b.data_aplicacao||'')
+      .localeCompare(a.data_aplicacao||'')
+  );
+
+const aplicacoesProd=state.aplicacoes
+  .filter(a=>safraIds.has(String(a.safra_id)))
+  .sort((a,b)=>
+    (b.data_aplicacao||'')
+      .localeCompare(a.data_aplicacao||'')
+  );
+
+function itensAdubFicha(a){
+  try{
+    const j=JSON.parse(a.produto||'');
+
+    if(Array.isArray(j)){
+      return j.map(x=>({
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto);
+    }
+  }catch(_){}
+
+  return a.produto?[{
+    produto:a.produto,
+    dose:a.dose??'',
+    unidade:a.unidade_dose||''
+  }]:[];
+}
+
+function itensAplicFicha(a){
+  try{
+    const j=JSON.parse(a.produto_comercial||'');
+
+    if(Array.isArray(j)){
+      return j.map(x=>({
+        categoria:x.categoria||'Produto',
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto);
+    }
+  }catch(_){}
+
+  return a.produto_comercial?[{
+    categoria:a.finalidade||'Aplicação',
+    produto:a.produto_comercial,
+    dose:a.dose??'',
+    unidade:a.unidade_dose||''
+  }]:[];
+}
+
+const proximasAdubacoes=adubacoesProd.filter(
+  a=>(a.data_aplicacao||'')>hoje
+);
+
+const proximasAplicacoes=aplicacoesProd.filter(
+  a=>(a.data_aplicacao||'')>hoje
+);
+
+const adubacoesRealizadas=adubacoesProd.filter(
+  a=>(a.data_aplicacao||'')<=hoje
+);
+
+const aplicacoesRealizadas=aplicacoesProd.filter(
+  a=>(a.data_aplicacao||'')<=hoje
+);
   const w=$('#modalWrap');
   w.className='modal-backdrop';
 
@@ -146,7 +222,174 @@ function viewProdutor(id){
       }).join('')
       :'<div class="empty">Nenhuma propriedade cadastrada.</div>'
     }
+    <h3>Protocolo de Adubação</h3>
 
+    ${
+      adubacoesProd.length
+      ?adubacoesProd.map(a=>{
+        const itens=itensAdubFicha(a);
+        const sf=safras.find(
+          s=>String(s.id)===String(a.safra_id)
+        );
+
+        return `
+          <div class="card">
+            <div class="card-row">
+              <div>
+                <h4>
+                  ${esc(
+                    a.tipo_adubacao||
+                    a.tipo||
+                    a.finalidade||
+                    'Adubação'
+                  )}
+                </h4>
+
+                ${
+                  sf
+                  ?`<div class="meta">
+                      ${esc(sf.cultura||'Lavoura')}
+                      ${sf.variedade?' — '+esc(sf.variedade):''}
+                    </div>`
+                  :''
+                }
+
+                ${itens.map(i=>`
+                  <div class="meta">
+                    • ${esc(i.produto)}
+                    — ${esc(i.dose||'-')} ${esc(i.unidade||'')}
+                  </div>
+                `).join('')}
+
+                <div class="meta">
+                  Data: ${dateBR(a.data_aplicacao)}
+                </div>
+              </div>
+
+              <span class="pill ${(a.data_aplicacao||'')>hoje?'gold':''}">
+                ${(a.data_aplicacao||'')>hoje?'Programada':'Realizada'}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('')
+      :'<div class="empty">Nenhuma adubação cadastrada.</div>'
+    }
+
+
+    <h3>Protocolo de Borrifação / Coquetéis</h3>
+
+    ${
+      aplicacoesProd.length
+      ?aplicacoesProd.map(a=>{
+        const itens=itensAplicFicha(a);
+
+        const sf=safras.find(
+          s=>String(s.id)===String(a.safra_id)
+        );
+
+        return `
+          <div class="card">
+            <div class="card-row">
+              <div>
+                <h4>
+                  ${itens.length>1
+                    ?'Coquetel'
+                    :esc(a.finalidade||'Aplicação')}
+                </h4>
+
+                ${
+                  sf
+                  ?`<div class="meta">
+                      ${esc(sf.cultura||'Lavoura')}
+                      ${sf.variedade?' — '+esc(sf.variedade):''}
+                    </div>`
+                  :''
+                }
+
+                ${itens.map(i=>`
+                  <div class="meta">
+                    • <strong>${esc(i.categoria)}:</strong>
+                    ${esc(i.produto)}
+                    — ${esc(i.dose||'-')} ${esc(i.unidade||'')}
+                  </div>
+                `).join('')}
+
+                ${
+                  a.alvo
+                  ?`<div class="meta">
+                      Alvo: ${esc(a.alvo)}
+                    </div>`
+                  :''
+                }
+
+                <div class="meta">
+                  Data: ${dateBR(a.data_aplicacao)}
+                </div>
+              </div>
+
+              <span class="pill ${(a.data_aplicacao||'')>hoje?'gold':''}">
+                ${(a.data_aplicacao||'')>hoje?'Programada':'Realizada'}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('')
+      :'<div class="empty">Nenhuma borrifação cadastrada.</div>'
+    }
+
+
+    <h3>Próximos manejos</h3>
+
+    ${
+      proximasAdubacoes.length || proximasAplicacoes.length
+      ?`
+        ${proximasAdubacoes.map(a=>`
+          <div class="card">
+            <h4>🌱 Adubação programada</h4>
+            <div class="meta">
+              ${esc(
+                a.tipo_adubacao||
+                a.tipo||
+                a.finalidade||
+                'Adubação'
+              )}
+            </div>
+            <div class="meta">
+              Data: ${dateBR(a.data_aplicacao)}
+            </div>
+          </div>
+        `).join('')}
+
+        ${proximasAplicacoes.map(a=>`
+          <div class="card">
+            <h4>💧 Borrifação programada</h4>
+            <div class="meta">
+              ${itensAplicFicha(a).length>1
+                ?'Coquetel'
+                :esc(a.finalidade||'Aplicação')}
+            </div>
+            <div class="meta">
+              Data: ${dateBR(a.data_aplicacao)}
+            </div>
+          </div>
+        `).join('')}
+      `
+      :'<div class="empty">Nenhum manejo programado.</div>'
+    }
+
+
+    <h3>Histórico realizado</h3>
+
+    <div class="card">
+      <div class="meta">
+        Adubações realizadas: <strong>${adubacoesRealizadas.length}</strong>
+      </div>
+
+      <div class="meta">
+        Borrifações realizadas: <strong>${aplicacoesRealizadas.length}</strong>
+      </div>
+    </div>
     <button
       class="btn btn-primary btn-block"
       type="button"
