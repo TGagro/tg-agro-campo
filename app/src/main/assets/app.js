@@ -1347,7 +1347,6 @@ function openAplicacao(sid){
           class="aplic-produto"
           list="produtosAplicacao"
           placeholder="Nome do produto"
-          required>
       </div>
 
       <div class="row2">
@@ -1360,7 +1359,7 @@ function openAplicacao(sid){
             type="number"
             step="any"
             min="0"
-            required>
+          
         </div>
 
         <div class="field">
@@ -1369,7 +1368,7 @@ function openAplicacao(sid){
           <input
             class="aplic-unidade"
             placeholder="Ex.: mL/20 L, mL/100 L, L/ha"
-            required>
+            
         </div>
 
       </div>
@@ -1443,7 +1442,17 @@ function openAplicacao(sid){
         r.querySelector('.aplic-unidade')
         .value.trim()
 
-    }));
+    })).filter(x=>x.produto);
+
+if(!itens.length){
+  toast('Informe pelo menos um produto');
+  return;
+}
+
+if(itens.some(x=>x.dose==='' || x.unidade==='')){
+  toast('Informe dose e unidade dos produtos preenchidos');
+  return;
+}
 
     const fd=new FormData(form);
 
