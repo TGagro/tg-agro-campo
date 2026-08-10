@@ -3,6 +3,18 @@ const SUPABASE_KEY='sb_publishable_b_SgzfAoxE2Cs3KahdwLJw_hobIA1wd';
 const state={session:null,produtores:[],propriedades:[],talhoes:[],safras:[],adubacoes:[],aplicacoes:[],colheitas:[]};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const uid=()=>state.session?.user?.id;
+async function loadPerfilUsuario(){
+  const rows=await api(
+    `/rest/v1/perfis_usuarios?user_id=eq.${uid()}&select=user_id,tipo_usuario,produtor_id`
+  );
+
+  state.perfilUsuario=
+    Array.isArray(rows) && rows.length
+      ? rows[0]
+      : null;
+
+  return state.perfilUsuario;
+}
 function headers(auth=true){const h={'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};if(auth&&state.session?.access_token)h.Authorization='Bearer '+state.session.access_token;return h}
 async function api(path,opts={}){const res=await fetch(SUPABASE_URL+path,{...opts,headers:{...headers(opts.auth!==false),...(opts.headers||{})}});if(!res.ok){let t=await res.text();throw new Error(t||`HTTP ${res.status}`)}if(res.status===204)return null;const text=await res.text();return text?JSON.parse(text):null}
 function saveSession(s){state.session=s;localStorage.setItem('tg_session',JSON.stringify(s||null))}
