@@ -1635,7 +1635,31 @@ async function boot(){
   }
 }
 function showLogin(){$('#loginView').classList.remove('hidden');$('#app').classList.add('hidden')}
-function showApp(){$('#loginView').classList.add('hidden');$('#app').classList.remove('hidden');$('#userLabel').textContent=state.session?.user?.email||'Gestão rural';loadAll();syncQueue()}
+async function showApp(){
+  $('#loginView').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  $('#userLabel').textContent=state.session?.user?.email||'Gestão rural';
+
+  if(!state.perfilUsuario && navigator.onLine){
+    try{
+      await loadPerfilUsuario();
+    }catch(e){
+      console.error(e);
+    }
+  }
+
+  const produtor=isProdutor();
+  const gestorNav=$('#gestorNav');
+  const produtorNav=$('#produtorNav');
+
+  if(gestorNav)gestorNav.classList.toggle('hidden',produtor);
+  if(produtorNav)produtorNav.classList.toggle('hidden',!produtor);
+
+  go(produtor?'produtor-inicio':'dashboard');
+
+  await loadAll();
+  syncQueue();
+}
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#loginMsg');m.textContent='Entrando...';try{const s=await login($('#email').value.trim(),$('#password').value);state.session=s;saveSession(s);m.textContent='';await loadPerfilUsuario();showApp()}catch(err){console.error(err);m.textContent='Não foi possível entrar. Confira e-mail e senha.'}})
 $('#logoutBtn').addEventListener('click',()=>{saveSession(null);state.session=null;showLogin()});
 document.addEventListener('click',e=>{
