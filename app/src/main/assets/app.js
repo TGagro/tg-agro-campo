@@ -74,7 +74,7 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hi
 function cacheData(){localStorage.setItem('tg_cache',JSON.stringify({perfilUsuario:state.perfilUsuario,produtores:state.produtores,,propriedades:state.propriedades,talhoes:state.talhoes,safras:state.safras,adubacoes:state.adubacoes,aplicacoes:state.aplicacoes,colheitas:state.colheitas}))}
 function loadCache(){try{Object.assign(state,JSON.parse(localStorage.getItem('tg_cache')||'{}'))}catch{}}
 async function loadTable(t){const rows=await api(`/rest/v1/${t}?select=*&order=created_at.desc`);state[t]=rows||[]}
-async function loadAll(){if(!navigator.onLine){loadCache();renderAll();return}try{await Promise.all(['produtores','propriedades','talhoes','safras','adubacoes','aplicacoes','colheitas'].map(loadTable));if(isProdutor())filtrarDadosProdutor();cacheData();renderAll()}catch(e){console.error(e);loadCache();renderAll();toast('Usando dados salvos no aparelho')}}
+async function loadAll(){if(!navigator.onLine){loadCache();if(isProdutor())filtrarDadosProdutor();renderAll();return}try{await Promise.all(['produtores','propriedades','talhoes','safras','adubacoes','aplicacoes','colheitas'].map(loadTable));if(isProdutor())filtrarDadosProdutor();cacheData();renderAll()}catch(e){console.error(e);loadCache();renderAll();toast('Usando dados salvos no aparelho')}}
 function nameBy(arr,id,key='nome'){return arr.find(x=>x.id===id)?.[key]||'—'}
 function propOfTalhao(tid){const t=state.talhoes.find(x=>x.id===tid);return t?state.propriedades.find(p=>p.id===t.propriedade_id):null}
 function talhaoOfSafra(s){return state.talhoes.find(t=>t.id===s.talhao_id)}
