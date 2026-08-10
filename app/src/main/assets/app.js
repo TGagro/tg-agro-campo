@@ -15,6 +15,9 @@ async function loadPerfilUsuario(){
 
   return state.perfilUsuario;
 }
+function isProdutor(){
+  return state.perfilUsuario?.tipo_usuario === 'produtor';
+}
 function headers(auth=true){const h={'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};if(auth&&state.session?.access_token)h.Authorization='Bearer '+state.session.access_token;return h}
 async function api(path,opts={}){const res=await fetch(SUPABASE_URL+path,{...opts,headers:{...headers(opts.auth!==false),...(opts.headers||{})}});if(!res.ok){let t=await res.text();throw new Error(t||`HTTP ${res.status}`)}if(res.status===204)return null;const text=await res.text();return text?JSON.parse(text):null}
 function saveSession(s){state.session=s;localStorage.setItem('tg_session',JSON.stringify(s||null))}
