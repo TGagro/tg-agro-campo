@@ -1589,7 +1589,7 @@ async function boot(){
 }
 function showLogin(){$('#loginView').classList.remove('hidden');$('#app').classList.add('hidden')}
 function showApp(){$('#loginView').classList.add('hidden');$('#app').classList.remove('hidden');$('#userLabel').textContent=state.session?.user?.email||'Gestão rural';loadAll();syncQueue()}
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#loginMsg');m.textContent='Entrando...';try{const s=await login($('#email').value.trim(),$('#password').value);state.session=s;saveSession(s);m.textContent='';showApp()}catch(err){console.error(err);m.textContent='Não foi possível entrar. Confira e-mail e senha.'}})
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#loginMsg');m.textContent='Entrando...';try{const s=await login($('#email').value.trim(),$('#password').value);state.session=s;saveSession(s);m.textContent='';await loadPerfilUsuario();showApp()}catch(err){console.error(err);m.textContent='Não foi possível entrar. Confira e-mail e senha.'}})
 $('#logoutBtn').addEventListener('click',()=>{saveSession(null);state.session=null;showLogin()});
 document.addEventListener('click',e=>{
  const p=e.target.closest('[data-page]');if(p)go(p.dataset.page);
