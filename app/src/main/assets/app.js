@@ -18,6 +18,50 @@ async function loadPerfilUsuario(){
 function isProdutor(){
   return state.perfilUsuario?.tipo_usuario === 'produtor';
 }
+function filtrarDadosProdutor(){
+  const pid=String(state.perfilUsuario?.produtor_id||'');
+  if(!pid)return;
+
+  state.produtores=state.produtores.filter(
+    p=>String(p.id)===pid
+  );
+
+  state.propriedades=state.propriedades.filter(
+    p=>String(p.produtor_id)===pid
+  );
+
+  const propIds=new Set(
+    state.propriedades.map(p=>String(p.id))
+  );
+
+  state.talhoes=state.talhoes.filter(
+    t=>propIds.has(String(t.propriedade_id))
+  );
+
+  const talhaoIds=new Set(
+    state.talhoes.map(t=>String(t.id))
+  );
+
+  state.safras=state.safras.filter(
+    s=>talhaoIds.has(String(s.talhao_id))
+  );
+
+  const safraIds=new Set(
+    state.safras.map(s=>String(s.id))
+  );
+
+  state.adubacoes=state.adubacoes.filter(
+    a=>safraIds.has(String(a.safra_id))
+  );
+
+  state.aplicacoes=state.aplicacoes.filter(
+    a=>safraIds.has(String(a.safra_id))
+  );
+
+  state.colheitas=state.colheitas.filter(
+    c=>safraIds.has(String(c.safra_id))
+  );
+}
 function headers(auth=true){const h={'apikey':SUPABASE_KEY,'Content-Type':'application/json','Prefer':'return=representation'};if(auth&&state.session?.access_token)h.Authorization='Bearer '+state.session.access_token;return h}
 async function api(path,opts={}){const res=await fetch(SUPABASE_URL+path,{...opts,headers:{...headers(opts.auth!==false),...(opts.headers||{})}});if(!res.ok){let t=await res.text();throw new Error(t||`HTTP ${res.status}`)}if(res.status===204)return null;const text=await res.text();return text?JSON.parse(text):null}
 function saveSession(s){state.session=s;localStorage.setItem('tg_session',JSON.stringify(s||null))}
