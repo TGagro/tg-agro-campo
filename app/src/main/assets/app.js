@@ -82,7 +82,7 @@ function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduc
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
- renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor())renderProdutorLavoura();renderDash();
+ renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();}renderDash();
 }
 function renderDash(){const el=$('#dashSafras');const rows=state.safras.slice(0,4);el.innerHTML=rows.length?rows.map(s=>safraCard(s,true)).join(''):'<div class="empty">Cadastre sua primeira lavoura para começar.</div>'}
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
@@ -151,6 +151,103 @@ function renderProdutorLavoura(){
       </div>
     `;
   }).join('');
+}
+function renderProdutorManejos(){
+  const el=$('#produtorManejosContent');
+  if(!el)return;
+
+  const hoje=new Date().toISOString().slice(0,10);
+  const safraIds=new Set(state.safras.map(s=>String(s.id)));
+  const manejos=[];
+
+  function itensAdub(a){
+    try{
+      const j=JSON.parse(a.produto||'');
+      if(Array.isArray(j))return j.map(x=>({
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto);
+    }catch(_){}
+
+    return a.produto?[{
+      produto:a.produto,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
+  function itensAplic(a){
+    try{
+      const j=JSON.parse(a.produto_comercial||'');
+      if(Array.isArray(j))return j.map(x=>({
+        categoria:x.categoria||'',
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto);
+    }catch(_){}
+
+    return a.produto_comercial?[{
+      categoria:a.finalidade||'Aplicação',
+      produto:a.produto_comercial,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
+  state.adubacoes
+    .filter(a=>
+      safraIds.has(String(a.safra_id)) &&
+      (a.data_aplicacao||'')>=hoje &&
+      (a.status||'')!=='realizada'
+    )
+    .forEach(a=>{
+      manejos.push({
+        tipo:'Adubação',
+        data:a.data_aplicacao,
+        itens:itensAdub(a)
+      });
+    });
+
+  state.aplicacoes
+    .filter(a=>
+      safraIds.has(String(a.safra_id)) &&
+      (a.data_aplicacao||'')>=hoje
+    )
+    .forEach(a=>{
+      manejos.push({
+        tipo:'Borrifação',
+        data:a.data_aplicacao,
+        itens:itensAplic(a)
+      });
+    });
+
+  manejos.sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+
+  if(!manejos.length){
+    el.innerHTML='<div class="empty">Nenhum manejo programado.</div>';
+    return;
+  }
+
+  el.innerHTML=manejos.map(m=>`
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <h4>${esc(m.tipo)}</h4>
+          <div class="meta">Data: ${dateBR(m.data)}</div>
+
+          ${m.itens.map(i=>`
+            <div class="meta">
+              ${i.categoria?'<strong>'+esc(i.categoria)+':</strong> ':''}
+              ${esc(i.produto)}
+              ${i.dose!==''?' — '+esc(i.dose)+' '+esc(i.unidade||''):''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+  `).join('');
 }
 function opts(arr,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}">${esc(x[label])}</option>`).join('')}
 function optsSelected(arr,selected,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}" ${String(x[value])===String(selected)?'selected':''}>${esc(x[label])}</option>`).join('')}
