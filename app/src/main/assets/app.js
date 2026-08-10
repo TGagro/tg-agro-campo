@@ -198,29 +198,34 @@ function renderProdutorManejos(){
 
   state.adubacoes
     .filter(a=>
-      safraIds.has(String(a.safra_id)) &&
-      (a.data_aplicacao||'')>=hoje &&
-      (a.status||'')!=='realizada'
-    )
+  safraIds.has(String(a.safra_id)) &&
+  (a.data_aplicacao||'')>=hoje &&
+  !['realizada','realizado'].includes((a.status||'').toLowerCase())
+)
     .forEach(a=>{
       manejos.push({
-        tipo:'Adubação',
-        data:a.data_aplicacao,
-        itens:itensAdub(a)
-      });
+    id:a.id,
+    origem:'adubacao',
+    tipo:'Adubação',
+    data:a.data_aplicacao,
+    itens:itensAdub(a)
+});
     });
 
   state.aplicacoes
     .filter(a=>
-      safraIds.has(String(a.safra_id)) &&
-      (a.data_aplicacao||'')>=hoje
-    )
+  safraIds.has(String(a.safra_id)) &&
+  (a.data_aplicacao||'')>=hoje &&
+  !['realizada','realizado'].includes((a.status||'').toLowerCase())
+)
     .forEach(a=>{
       manejos.push({
-        tipo:'Borrifação',
-        data:a.data_aplicacao,
-        itens:itensAplic(a)
-      });
+    id:a.id,
+    origem:'aplicacao',
+    tipo:'Borrifação',
+    data:a.data_aplicacao,
+    itens:itensAplic(a)
+});
     });
 
   manejos.sort((a,b)=>(a.data||'').localeCompare(b.data||''));
@@ -244,10 +249,51 @@ function renderProdutorManejos(){
               ${i.dose!==''?' — '+esc(i.dose)+' '+esc(i.unidade||''):''}
             </div>
           `).join('')}
+          <button class="btn-block" type="button"
+  data-realizar-manejo
+  data-origem="${esc(m.origem)}"
+  data-id="${esc(m.id)}">
+  ✓ Marcar como realizado
+</button>
         </div>
       </div>
     </div>
   `).join('');
+}
+async function realizarManejo(origem,id){
+  const tabela=
+    origem==='adubacao' ? 'adubacoes' :
+    origem==='aplicacao' ? 'aplicacoes' :
+    null;
+
+  if(!tabela || !id)return;
+
+  try{
+    const r=await api(`/rest/v1/${tabela}?id=eq.${encodeURIComponent(id)}`,{
+      method:'PATCH',
+      body:JSON.stringify({status:'realizado'})
+    });
+
+    if(Array.isArray(r) && r.length===0){
+      throw new Error('Registro não atualizado');
+    }
+
+    const arr=origem==='adubacao'
+      ? state.adubacoes
+      : state.aplicacoes;
+
+    const item=arr.find(x=>String(x.id)===String(id));
+    if(item)item.status='realizado';
+
+    cacheData();
+    renderProdutorManejos();
+    renderProdutorHistorico();
+
+    toast('Manejo marcado como realizado');
+  }catch(err){
+    console.error(err);
+    toast('Não foi possível marcar como realizado');
+  }
 }
 function renderProdutorProtocolo(){
   const el=$('#produtorProtocoloContent');
@@ -381,10 +427,9 @@ function renderProdutorHistorico(){
 
   state.adubacoes
     .filter(a=>
-      safraIds.has(String(a.safra_id)) &&
-      (a.status==='realizada' ||
-       (!a.status && (a.data_aplicacao||'')<=hoje))
-    )
+  safraIds.has(String(a.safra_id)) &&
+  ['realizada','realizado'].includes((a.status||'').toLowerCase())
+)
     .forEach(a=>historico.push({
       tipo:'Adubação',
       data:a.data_aplicacao,
@@ -393,10 +438,9 @@ function renderProdutorHistorico(){
 
   state.aplicacoes
     .filter(a=>
-      safraIds.has(String(a.safra_id)) &&
-      (a.status==='realizada' ||
-       (!a.status && (a.data_aplicacao||'')<=hoje))
-    )
+  safraIds.has(String(a.safra_id)) &&
+  ['realizada','realizado'].includes((a.status||'').toLowerCase())
+)
     .forEach(a=>historico.push({
       tipo:'Borrifação',
       data:a.data_aplicacao,
@@ -2089,6 +2133,8 @@ async function showApp(){
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#loginMsg');m.textContent='Entrando...';try{const s=await login($('#email').value.trim(),$('#password').value);state.session=s;saveSession(s);m.textContent='';await loadPerfilUsuario();showApp()}catch(err){console.error(err);m.textContent='Não foi possível entrar. Confira e-mail e senha.'}})
 $('#logoutBtn').addEventListener('click',()=>{saveSession(null);state.session=null;showLogin()});
 document.addEventListener('click',e=>{
+ const rm=e.target.closest('[data-realizar-manejo]');
+if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id); 
  const p=e.target.closest('[data-page]');if(p)go(p.dataset.page);
  const g=e.target.closest('[data-go]');if(g)go(g.dataset.go);
  const o=e.target.closest('[data-open]');if(o)openForm(o.dataset.open);
