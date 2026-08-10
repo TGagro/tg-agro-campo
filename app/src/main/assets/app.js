@@ -82,7 +82,7 @@ function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduc
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
- renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();}renderDash();
+ renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();}renderDash();
 }
 function renderDash(){const el=$('#dashSafras');const rows=state.safras.slice(0,4);el.innerHTML=rows.length?rows.map(s=>safraCard(s,true)).join(''):'<div class="empty">Cadastre sua primeira lavoura para começar.</div>'}
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
@@ -248,6 +248,234 @@ function renderProdutorManejos(){
       </div>
     </div>
   `).join('');
+}
+function renderProdutorProtocolo(){
+  const el=$('#produtorProtocoloContent');
+  if(!el)return;
+
+  const safraIds=new Set(state.safras.map(s=>String(s.id)));
+  const protocolo=[];
+
+  function itensAdub(a){
+    try{
+      const j=JSON.parse(a.produto||'');
+      if(Array.isArray(j))return j.map(x=>({
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto);
+    }catch(_){}
+
+    return a.produto?[{
+      produto:a.produto,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
+  function itensAplic(a){
+    try{
+      const j=JSON.parse(a.produto_comercial||'');
+      if(Array.isArray(j))return j.map(x=>({
+        categoria:x.categoria||'',
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto && x.produto.toLowerCase()!=='nenhum');
+    }catch(_){}
+
+    return a.produto_comercial?[{
+      categoria:a.finalidade||'Aplicação',
+      produto:a.produto_comercial,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
+  state.adubacoes
+    .filter(a=>safraIds.has(String(a.safra_id)))
+    .forEach(a=>protocolo.push({
+      tipo:'Adubação',
+      data:a.data_aplicacao,
+      itens:itensAdub(a)
+    }));
+
+  state.aplicacoes
+    .filter(a=>safraIds.has(String(a.safra_id)))
+    .forEach(a=>protocolo.push({
+      tipo:'Borrifação',
+      data:a.data_aplicacao,
+      itens:itensAplic(a)
+    }));
+
+  protocolo.sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+
+  if(!protocolo.length){
+    el.innerHTML='<div class="empty">Nenhum protocolo cadastrado.</div>';
+    return;
+  }
+
+  el.innerHTML=protocolo.map(p=>`
+    <div class="card">
+      <h4>${esc(p.tipo)}</h4>
+      <div class="meta">Data: ${dateBR(p.data)}</div>
+
+      ${p.itens.map(i=>`
+        <div class="meta">
+          ${i.categoria?'<strong>'+esc(i.categoria)+':</strong> ':''}
+          ${esc(i.produto)}
+          ${i.dose!==''?' — '+esc(i.dose)+' '+esc(i.unidade||''):''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+function renderProdutorHistorico(){
+  const el=$('#produtorHistoricoContent');
+  if(!el)return;
+
+  const hoje=new Date().toISOString().slice(0,10);
+  const safraIds=new Set(state.safras.map(s=>String(s.id)));
+  const historico=[];
+
+  function itensAdub(a){
+    try{
+      const j=JSON.parse(a.produto||'');
+      if(Array.isArray(j))return j.map(x=>({
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>x.produto);
+    }catch(_){}
+
+    return a.produto?[{
+      produto:a.produto,
+      dose:a.dose??'',
+      unidade:a.unidade_dose||''
+    }]:[];
+  }
+
+  function itensAplic(a){
+    try{
+      const j=JSON.parse(a.produto_comercial||'');
+      if(Array.isArray(j))return j.map(x=>({
+        categoria:x.categoria||'',
+        produto:x.produto||'',
+        dose:x.dose??'',
+        unidade:x.unidade||x.unidade_dose||''
+      })).filter(x=>
+        x.produto &&
+        x.produto.toLowerCase()!=='nenhum'
+      );
+    }catch(_){}
+
+    return a.produto_comercial &&
+      a.produto_comercial.toLowerCase()!=='nenhum'
+      ?[{
+        categoria:a.finalidade||'Aplicação',
+        produto:a.produto_comercial,
+        dose:a.dose??'',
+        unidade:a.unidade_dose||''
+      }]:[];
+  }
+
+  state.adubacoes
+    .filter(a=>
+      safraIds.has(String(a.safra_id)) &&
+      (a.status==='realizada' ||
+       (!a.status && (a.data_aplicacao||'')<=hoje))
+    )
+    .forEach(a=>historico.push({
+      tipo:'Adubação',
+      data:a.data_aplicacao,
+      itens:itensAdub(a)
+    }));
+
+  state.aplicacoes
+    .filter(a=>
+      safraIds.has(String(a.safra_id)) &&
+      (a.status==='realizada' ||
+       (!a.status && (a.data_aplicacao||'')<=hoje))
+    )
+    .forEach(a=>historico.push({
+      tipo:'Borrifação',
+      data:a.data_aplicacao,
+      itens:itensAplic(a)
+    }));
+
+  historico.sort((a,b)=>
+    (b.data||'').localeCompare(a.data||'')
+  );
+
+  if(!historico.length){
+    el.innerHTML='<div class="empty">Nenhuma atividade realizada.</div>';
+    return;
+  }
+
+  el.innerHTML=historico.map(h=>`
+    <div class="card">
+      <h4>${esc(h.tipo)}</h4>
+      <div class="meta">Realizado em: ${dateBR(h.data)}</div>
+
+      ${h.itens.map(i=>`
+        <div class="meta">
+          ${i.categoria
+            ?'<strong>'+esc(i.categoria)+':</strong> '
+            :''
+          }
+          ${esc(i.produto)}
+          ${i.dose!==''
+            ?' — '+esc(i.dose)+' '+esc(i.unidade||'')
+            :''
+          }
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+function renderProdutorFicha(){
+  const el=$('#produtorFichaContent');
+  if(!el)return;
+
+  const produtor=state.produtores[0]||null;
+  const propriedade=state.propriedades[0]||null;
+  const talhao=state.talhoes[0]||null;
+  const safra=state.safras[0]||null;
+
+  if(!produtor && !propriedade && !safra){
+    el.innerHTML='<div class="empty">Ficha técnica ainda não disponível.</div>';
+    return;
+  }
+
+  const idade=safra?ageDays(safra.data_plantio):null;
+
+  el.innerHTML=`
+    <div class="card">
+      <h4>Produtor</h4>
+      <div class="meta"><strong>Nome:</strong> ${esc(produtor?.nome||'-')}</div>
+      <div class="meta"><strong>Telefone:</strong> ${esc(produtor?.telefone||'-')}</div>
+      <div class="meta"><strong>Município:</strong> ${esc(produtor?.municipio||'-')}</div>
+      <div class="meta"><strong>Estado:</strong> ${esc(produtor?.estado||'-')}</div>
+    </div>
+
+    <div class="card">
+      <h4>Propriedade</h4>
+      <div class="meta"><strong>Nome:</strong> ${esc(propriedade?.nome||'-')}</div>
+      <div class="meta"><strong>Área total:</strong> ${esc(propriedade?.area_ha||'-')} ha</div>
+      <div class="meta"><strong>Protocolo:</strong> ${esc(propriedade?.protocolo||'-')}</div>
+    </div>
+
+    <div class="card">
+      <h4>Lavoura</h4>
+      <div class="meta"><strong>Cultura:</strong> ${esc(safra?.cultura||'-')}</div>
+      <div class="meta"><strong>Variedade:</strong> ${esc(safra?.variedade||'-')}</div>
+      <div class="meta"><strong>Talhão:</strong> ${esc(talhao?.nome||'-')}</div>
+      <div class="meta"><strong>Área:</strong> ${esc(talhao?.area_ha||'-')} ha</div>
+      <div class="meta"><strong>Plantio:</strong> ${safra?.data_plantio?dateBR(safra.data_plantio):'-'}</div>
+      <div class="meta"><strong>Idade:</strong> ${idade===null?'-':idade+' dias'}</div>
+      <div class="meta"><strong>Situação:</strong> ${esc(safra?.status||'-')}</div>
+    </div>
+  `;
 }
 function opts(arr,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}">${esc(x[label])}</option>`).join('')}
 function optsSelected(arr,selected,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}" ${String(x[value])===String(selected)?'selected':''}>${esc(x[label])}</option>`).join('')}
