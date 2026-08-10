@@ -1,4 +1,4 @@
-const SUPABASE_URL='https://olekhksinesqosfmtdjf.supabase.co';
+⅞const SUPABASE_URL='https://olekhksinesqosfmtdjf.supabase.co';
 const SUPABASE_KEY='sb_publishable_b_SgzfAoxE2Cs3KahdwLJw_hobIA1wd';
 const state={session:null,produtores:[],propriedades:[],talhoes:[],safras:[],adubacoes:[],aplicacoes:[],colheitas:[]};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -82,7 +82,7 @@ function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduc
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
- renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();}renderDash();
+ renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
 }
 function renderDash(){const el=$('#dashSafras');const rows=state.safras.slice(0,4);el.innerHTML=rows.length?rows.map(s=>safraCard(s,true)).join(''):'<div class="empty">Cadastre sua primeira lavoura para começar.</div>'}
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
@@ -471,6 +471,36 @@ function renderProdutorFicha(){
       <div class="meta"><strong>Variedade:</strong> ${esc(safra?.variedade||'-')}</div>
       <div class="meta"><strong>Talhão:</strong> ${esc(talhao?.nome||'-')}</div>
       <div class="meta"><strong>Área:</strong> ${esc(talhao?.area_ha||'-')} ha</div>
+      <div class="meta"><strong>Plantio:</strong> ${safra?.data_plantio?dateBR(safra.data_plantio):'-'}</div>
+      <div class="meta"><strong>Idade:</strong> ${idade===null?'-':idade+' dias'}</div>
+      <div class="meta"><strong>Situação:</strong> ${esc(safra?.status||'-')}</div>
+    </div>
+  `;
+}
+function renderProdutorInicio(){
+  const el=$('#produtorInicioContent');
+  if(!el)return;
+
+  const propriedade=state.propriedades[0]||null;
+  const talhao=state.talhoes[0]||null;
+  const safra=state.safras[0]||null;
+
+  if(!propriedade && !safra){
+    el.innerHTML='<div class="empty">Informações da propriedade ainda não disponíveis.</div>';
+    return;
+  }
+
+  const idade=safra?ageDays(safra.data_plantio):null;
+
+  el.innerHTML=`
+    <div class="card">
+      <h4>${esc(propriedade?.nome||'Minha propriedade')}</h4>
+      <div class="meta"><strong>Área:</strong> ${esc(propriedade?.area_ha||'-')} ha</div>
+    </div>
+
+    <div class="card">
+      <h4>${esc(safra?.cultura||'Lavoura')} ${safra?.variedade?'• '+esc(safra.variedade):''}</h4>
+      <div class="meta"><strong>Talhão:</strong> ${esc(talhao?.nome||'-')}</div>
       <div class="meta"><strong>Plantio:</strong> ${safra?.data_plantio?dateBR(safra.data_plantio):'-'}</div>
       <div class="meta"><strong>Idade:</strong> ${idade===null?'-':idade+' dias'}</div>
       <div class="meta"><strong>Situação:</strong> ${esc(safra?.status||'-')}</div>
