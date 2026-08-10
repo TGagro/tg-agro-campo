@@ -82,7 +82,7 @@ function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduc
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
- renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderDash();
+ renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor())renderProdutorLavoura();renderDash();
 }
 function renderDash(){const el=$('#dashSafras');const rows=state.safras.slice(0,4);el.innerHTML=rows.length?rows.map(s=>safraCard(s,true)).join(''):'<div class="empty">Cadastre sua primeira lavoura para começar.</div>'}
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
@@ -90,6 +90,68 @@ function renderPropriedades(){const el=$('#propriedadesList');el.innerHTML=state
 function renderTalhoes(){const el=$('#talhoesList');el.innerHTML=state.talhoes.length?state.talhoes.map(t=>`<div class="card card-click" data-edit-talhao="${t.id}"><div class="card-row"><div><h4>${esc(t.nome)}</h4><div class="meta">${esc(nameBy(state.propriedades,t.propriedade_id))}</div><div class="meta">Área: ${Number(t.area_ha||0).toLocaleString('pt-BR')} ha</div></div><span class="pill">${state.safras.filter(s=>s.talhao_id===t.id).length} safra(s)</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum talhão cadastrado.</div>'}
 function safraCard(s,compact=false){const t=talhaoOfSafra(s),p=t?state.propriedades.find(x=>x.id===t.propriedade_id):null,age=ageDays(s.data_plantio),kg=prodTotal(s.id),prod=produtividade(s);return `<div class="card"><div class="card-row card-click" data-edit-safra="${s.id}"><div><h4>${esc(s.cultura)} ${s.variedade?`• ${esc(s.variedade)}`:''}</h4><div class="meta">${esc(p?.nome||'')} • ${esc(t?.nome||'')}</div><div class="kpi-line"><span class="pill">${age===null?'idade —':age+' dias'}</span><span class="pill gold">${kg.toLocaleString('pt-BR')} kg</span><span class="pill">${prod.toFixed(2).replace('.',',')} t/ha</span></div><div class="edit-hint">Toque para abrir e editar</div></div><span class="pill ${s.status==='encerrada'?'red':''}">${esc(s.status||'ativa')}</span></div>${compact?'':`<div class="actions"><button class="mini-btn" data-action="adubacao" data-sid="${s.id}">+ Adubação</button><button class="mini-btn" data-action="aplicacao" data-sid="${s.id}">+ Aplicação</button><button class="mini-btn" data-action="colheita" data-sid="${s.id}">+ Colheita</button></div>`}</div>`}
 function renderSafras(){const el=$('#safrasList');el.innerHTML=state.safras.length?state.safras.map(s=>safraCard(s)).join(''):'<div class="empty">Nenhuma lavoura cadastrada.</div>'}
+function renderProdutorLavoura(){
+  const el=$('#produtorLavouraContent');
+  if(!el)return;
+
+  if(!state.safras.length){
+    el.innerHTML='<div class="empty">Nenhuma lavoura cadastrada.</div>';
+    return;
+  }
+
+  el.innerHTML=state.safras.map(s=>{
+    const t=state.talhoes.find(
+      x=>String(x.id)===String(s.talhao_id)
+    );
+
+    const p=t
+      ?state.propriedades.find(
+        x=>String(x.id)===String(t.propriedade_id)
+      )
+      :null;
+
+    const idade=ageDays(s.data_plantio);
+
+    return `
+      <div class="card">
+        <div class="card-row">
+          <div>
+            <h4>
+              ${esc(s.cultura||'Lavoura')}
+              ${s.variedade?' • '+esc(s.variedade):''}
+            </h4>
+
+            <div class="meta">
+              Propriedade: ${esc(p?.nome||'—')}
+            </div>
+
+            <div class="meta">
+              Talhão: ${esc(t?.nome||'—')}
+            </div>
+
+            <div class="meta">
+              Área: ${Number(t?.area_ha||0).toLocaleString('pt-BR')} ha
+            </div>
+
+            <div class="meta">
+              Plantio: ${dateBR(s.data_plantio)}
+            </div>
+
+            <div class="kpi-line">
+              <span class="pill">
+                ${idade===null?'Idade —':idade+' dias'}
+              </span>
+
+              <span class="pill">
+                ${esc(s.status||'ativa')}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 function opts(arr,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}">${esc(x[label])}</option>`).join('')}
 function optsSelected(arr,selected,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}" ${String(x[value])===String(selected)?'selected':''}>${esc(x[label])}</option>`).join('')}
 function modal(title,body,onSubmit){const w=$('#modalWrap');w.className='modal-backdrop';w.innerHTML=`<div class="modal"><div class="modal-head"><h3>${title}</h3><button class="close" id="closeModal">×</button></div><form id="modalForm">${body}<button class="btn btn-primary btn-block" type="submit">SALVAR</button></form></div>`;$('#closeModal').onclick=closeModal;$('#modalForm').onsubmit=onSubmit}
