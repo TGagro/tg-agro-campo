@@ -1,4 +1,4 @@
-⅞const SUPABASE_URL='https://olekhksinesqosfmtdjf.supabase.co';
+const SUPABASE_URL='https://olekhksinesqosfmtdjf.supabase.co';
 const SUPABASE_KEY='sb_publishable_b_SgzfAoxE2Cs3KahdwLJw_hobIA1wd';
 const state={session:null,produtores:[],propriedades:[],talhoes:[],safras:[],adubacoes:[],aplicacoes:[],colheitas:[]};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
