@@ -71,7 +71,7 @@ function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':
 function dateBR(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}
 function ageDays(d){if(!d)return null;return Math.max(0,Math.floor((Date.now()-new Date(d+'T12:00:00'))/86400000))}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2600)}
-function cacheData(){localStorage.setItem('tg_cache',JSON.stringify({produtores:state.produtores,propriedades:state.propriedades,talhoes:state.talhoes,safras:state.safras,adubacoes:state.adubacoes,aplicacoes:state.aplicacoes,colheitas:state.colheitas}))}
+function cacheData(){localStorage.setItem('tg_cache',JSON.stringify({perfilUsuario:state.perfilUsuario,produtores:state.produtores,,propriedades:state.propriedades,talhoes:state.talhoes,safras:state.safras,adubacoes:state.adubacoes,aplicacoes:state.aplicacoes,colheitas:state.colheitas}))}
 function loadCache(){try{Object.assign(state,JSON.parse(localStorage.getItem('tg_cache')||'{}'))}catch{}}
 async function loadTable(t){const rows=await api(`/rest/v1/${t}?select=*&order=created_at.desc`);state[t]=rows||[]}
 async function loadAll(){if(!navigator.onLine){loadCache();renderAll();return}try{await Promise.all(['produtores','propriedades','talhoes','safras','adubacoes','aplicacoes','colheitas'].map(loadTable));if(isProdutor())filtrarDadosProdutor();cacheData();renderAll()}catch(e){console.error(e);loadCache();renderAll();toast('Usando dados salvos no aparelho')}}
