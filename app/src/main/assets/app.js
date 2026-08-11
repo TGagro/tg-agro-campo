@@ -933,11 +933,19 @@ const aplicacoesRealizadas=aplicacoesProd.filter(
       </div>
     </div>
     <button
-      class="btn btn-primary btn-block"
-      type="button"
-      id="editarDadosProdutor">
-      EDITAR DADOS
-    </button>
+  class="btn btn-primary btn-block"
+  type="button"
+  id="criarAcessoProdutor"
+  style="margin-bottom:10px;">
+  🔑 CRIAR ACESSO
+</button>
+
+<button
+  class="btn btn-primary btn-block"
+  type="button"
+  id="editarDadosProdutor">
+  EDITAR DADOS
+</button>
 
   </div>`;
 
@@ -946,7 +954,51 @@ const aplicacoesRealizadas=aplicacoesProd.filter(
   $('#editarDadosProdutor').onclick=()=>{
     closeModal();
     editProdutor(id);
-  }; 
+  };
+  $('#criarAcessoProdutor').onclick=async()=>{
+  const email=prompt('Digite o e-mail de acesso do produtor:');
+  if(!email)return;
+
+  const senha=prompt('Digite a senha inicial (mínimo 6 caracteres):');
+  if(!senha)return;
+
+  if(senha.length<6){
+    toast('A senha precisa ter pelo menos 6 caracteres');
+    return;
+  }
+
+  try{
+    toast('Criando acesso...');
+
+    const res=await fetch(
+      SUPABASE_URL+'/functions/v1/super-endpoint',
+      {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':SUPABASE_KEY,
+          'Authorization':'Bearer '+state.session.access_token
+        },
+        body:JSON.stringify({
+          produtor_id:id,
+          email:email.trim().toLowerCase(),
+          password:senha
+        })
+      }
+    );
+
+    const dados=await res.json();
+
+    if(!res.ok){
+      throw new Error(dados.error||'Erro ao criar acesso');
+    }
+
+    toast('✓ Acesso criado com sucesso');
+  }catch(err){
+    console.error(err);
+    toast(err.message||'Não foi possível criar o acesso');
+  }
+};
  document.querySelectorAll('.concluir-ficha-adub').forEach(btn=>{
   btn.onclick=async()=>{
     const adubId=btn.dataset.id;
