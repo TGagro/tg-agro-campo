@@ -202,15 +202,28 @@ function montarEscolhaLogin(){
           'Link de recuperação enviado para o e-mail'
         );
 
-      }catch(err){
+     }catch(err){
 
-        console.error(err);
+  console.error('ERRO RECUPERAÇÃO:',err);
 
-        toast(
-          'Não foi possível enviar a recuperação'
-        );
+  let mensagem=
+    err?.message ||
+    'Não foi possível enviar a recuperação';
 
-      }finally{
+  try{
+    const j=JSON.parse(mensagem);
+
+    mensagem=
+      j.msg ||
+      j.message ||
+      j.error_description ||
+      j.error ||
+      mensagem;
+  }catch(_){}
+
+  toast(mensagem);
+}
+      finally{
 
         recuperar.disabled=false;
         recuperar.textContent=
