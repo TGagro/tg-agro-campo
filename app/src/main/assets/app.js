@@ -360,6 +360,84 @@ function resumoTecnicoSafra(safra){
     atingimento
   };
 }
+function hojeLocalISO(){
+  const d=new Date();
+
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dia=String(d.getDate()).padStart(2,'0');
+
+  return `${y}-${m}-${dia}`;
+}
+
+function statusManejoTG(item){
+  const status=String(
+    item?.status||''
+  ).toLowerCase();
+
+  if(
+    status==='realizado' ||
+    status==='realizada'
+  ){
+    return 'realizado';
+  }
+
+  const hoje=hojeLocalISO();
+  const data=item?.data_aplicacao||'';
+
+  if(!data){
+    return 'programado';
+  }
+
+  if(data<hoje){
+    return 'atrasado';
+  }
+
+  if(data===hoje){
+    return 'hoje';
+  }
+
+  return 'programado';
+}
+
+function contextoSafra(safraId){
+
+  const safra=state.safras.find(
+    s=>String(s.id)===String(safraId)
+  );
+
+  if(!safra){
+    return {
+      safra:null,
+      talhao:null,
+      propriedade:null,
+      produtor:null
+    };
+  }
+
+  const talhao=state.talhoes.find(
+    t=>String(t.id)===String(safra.talhao_id)
+  );
+
+  const propriedade=talhao
+    ?state.propriedades.find(
+      p=>String(p.id)===String(talhao.propriedade_id)
+    )
+    :null;
+
+  const produtor=propriedade
+    ?state.produtores.find(
+      p=>String(p.id)===String(propriedade.produtor_id)
+    )
+    :null;
+
+  return {
+    safra,
+    talhao,
+    propriedade,
+    produtor
+  };
+}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2600)}
 function cacheData(){localStorage.setItem('tg_cache',JSON.stringify({perfilUsuario:state.perfilUsuario,produtores:state.produtores,propriedades:state.propriedades,talhoes:state.talhoes,safras:state.safras,adubacoes:state.adubacoes,aplicacoes:state.aplicacoes,colheitas:state.colheitas}))}
 function loadCache(){try{Object.assign(state,JSON.parse(localStorage.getItem('tg_cache')||'{}'))}catch{}}
@@ -374,7 +452,477 @@ function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
  renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
 }
-function renderDash(){const el=$('#dashSafras');const rows=state.safras.slice(0,4);el.innerHTML=rows.length?rows.map(s=>safraCard(s,true)).join(''):'<div class="empty">Cadastre sua primeira lavoura para começar.</div>'}
+function renderDash(){
+
+  const el=$('#dashSafras');
+  if(!el)return;
+
+  const hoje=hojeLocalISO();
+
+  const d7=new Date();
+  d7.setDate(d7.getDate()+7);
+
+  const limite7=[
+    d7.getFullYear(),
+    String(d7.getMonth()+1).padStart(2,'0'),
+    String(d7.getDate()).padStart(2,'0')
+  ].join('-');
+
+
+  // =========================
+  // TODOS OS MANEJOS
+  // =========================
+
+  const manejos=[];
+
+  state.adubacoes.forEach(a=>{
+    manejos.push({
+      ...a,
+      origem:'adubacao',
+      tipo:'Adubação'
+    });
+  });
+
+  state.aplicacoes.forEach(a=>{
+    manejos.push({
+      ...a,
+      origem:'aplicacao',
+      tipo:'Borrifação'
+    });
+  });
+
+
+  const hojeLista=manejos.filter(
+    m=>statusManejoTG(m)==='hoje'
+  );
+
+  const atrasados=manejos.filter(
+    m=>statusManejoTG(m)==='atrasado'
+  );
+
+  const proximos=manejos.filter(m=>
+    statusManejoTG(m)==='programado' &&
+    (m.data_aplicacao||'')<=limite7
+  );
+
+
+  // =========================
+  // REALIZADOS ÚLTIMOS 7 DIAS
+  // =========================
+
+  const dMenos7=new Date();
+  dMenos7.setDate(
+    dMenos7.getDate()-7
+  );
+
+  const limiteAnterior=[
+    dMenos7.getFullYear(),
+    String(dMenos7.getMonth()+1).padStart(2,'0'),
+    String(dMenos7.getDate()).padStart(2,'0')
+  ].join('-');
+
+
+  const realizados=manejos.filter(m=>{
+
+    if(statusManejoTG(m)!=='realizado'){
+      return false;
+    }
+
+    const data=
+      m.data_realizacao ||
+      m.data_aplicacao ||
+      '';
+
+    return data>=limiteAnterior;
+  });
+
+
+  // =========================
+  // PRODUÇÃO ÚLTIMOS 30 DIAS
+  // =========================
+
+  const d30=new Date();
+  d30.setDate(
+    d30.getDate()-30
+  );
+
+  const limite30=[
+    d30.getFullYear(),
+    String(d30.getMonth()+1).padStart(2,'0'),
+    String(d30.getDate()).padStart(2,'0')
+  ].join('-');
+
+
+  const colheitas30=state.colheitas.filter(
+    c=>(c.data_colheita||'')>=limite30
+  );
+
+  const producao30=colheitas30.reduce(
+    (n,c)=>n+Number(c.peso_kg||0),
+    0
+  );
+
+
+  // =========================
+  // RESUMO DO MANEJO
+  // =========================
+
+  function produtosManejo(m){
+
+    let itens=[];
+
+    try{
+
+      const bruto=
+        m.origem==='adubacao'
+          ?m.produto
+          :m.produto_comercial;
+
+      const j=JSON.parse(bruto||'');
+
+      if(Array.isArray(j)){
+        itens=j;
+      }
+
+    }catch(_){}
+
+
+    if(itens.length){
+
+      return itens
+        .filter(i=>i.produto)
+        .map(i=>i.produto)
+        .join(' + ');
+    }
+
+
+    if(m.origem==='adubacao'){
+      return m.produto||'Adubação';
+    }
+
+    return m.produto_comercial||
+      m.finalidade||
+      'Borrifação';
+  }
+
+
+  function cardManejo(m){
+
+    const ctx=contextoSafra(
+      m.safra_id
+    );
+
+    const status=
+      statusManejoTG(m);
+
+    let textoStatus='Programado';
+    let classe='gold';
+
+    if(status==='hoje'){
+      textoStatus='Hoje';
+      classe='gold';
+    }
+
+    if(status==='atrasado'){
+      textoStatus='Atrasado';
+      classe='red';
+    }
+
+    if(status==='realizado'){
+      textoStatus='Realizado';
+      classe='';
+    }
+
+
+    return `
+      <div
+        class="card card-click"
+        ${
+          ctx.produtor
+            ?`data-edit-produtor="${esc(ctx.produtor.id)}"`
+            :''
+        }>
+
+        <div class="card-row">
+
+          <div>
+
+            <h4>
+              ${esc(m.tipo)}
+            </h4>
+
+            <div class="meta">
+              <strong>
+                ${esc(
+                  ctx.produtor?.nome||
+                  'Produtor'
+                )}
+              </strong>
+            </div>
+
+            <div class="meta">
+              ${esc(
+                ctx.safra?.cultura||
+                'Lavoura'
+              )}
+              ${
+                ctx.safra?.variedade
+                  ?' • '+esc(ctx.safra.variedade)
+                  :''
+              }
+            </div>
+
+            <div class="meta">
+              ${esc(
+                ctx.propriedade?.nome||
+                ''
+              )}
+              ${
+                ctx.talhao?.nome
+                  ?' • '+esc(ctx.talhao.nome)
+                  :''
+              }
+            </div>
+
+            <div
+              class="meta"
+              style="margin-top:5px">
+
+              ${esc(produtosManejo(m))}
+
+            </div>
+
+            <div class="meta">
+              Data:
+              ${dateBR(m.data_aplicacao)}
+            </div>
+
+          </div>
+
+          <span class="pill ${classe}">
+            ${textoStatus}
+          </span>
+
+        </div>
+
+      </div>
+    `;
+  }
+
+
+  // =========================
+  // PRODUÇÃO POR PRODUTOR
+  // =========================
+
+  const producaoPorProdutor={};
+
+  colheitas30.forEach(c=>{
+
+    const ctx=contextoSafra(
+      c.safra_id
+    );
+
+    if(!ctx.produtor)return;
+
+    const id=String(
+      ctx.produtor.id
+    );
+
+    if(!producaoPorProdutor[id]){
+
+      producaoPorProdutor[id]={
+        produtor:ctx.produtor,
+        kg:0
+      };
+    }
+
+    producaoPorProdutor[id].kg+=
+      Number(c.peso_kg||0);
+  });
+
+
+  const ranking=Object.values(
+    producaoPorProdutor
+  ).sort(
+    (a,b)=>b.kg-a.kg
+  );
+
+
+  // =========================
+  // TELA
+  // =========================
+
+  el.innerHTML=`
+
+    <h3>Visão geral</h3>
+
+    <div style="
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-bottom:18px;
+    ">
+
+      <div class="card" style="margin:0">
+        <div class="meta">
+          Manejos hoje
+        </div>
+
+        <h2 style="margin:5px 0">
+          ${hojeLista.length}
+        </h2>
+      </div>
+
+
+      <div class="card" style="margin:0">
+        <div class="meta">
+          Atrasados
+        </div>
+
+        <h2 style="margin:5px 0">
+          ${atrasados.length}
+        </h2>
+      </div>
+
+
+      <div class="card" style="margin:0">
+        <div class="meta">
+          Próximos 7 dias
+        </div>
+
+        <h2 style="margin:5px 0">
+          ${proximos.length}
+        </h2>
+      </div>
+
+
+      <div class="card" style="margin:0">
+        <div class="meta">
+          Realizados 7 dias
+        </div>
+
+        <h2 style="margin:5px 0">
+          ${realizados.length}
+        </h2>
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="meta">
+        Produção registrada nos últimos 30 dias
+      </div>
+
+      <h2 style="margin:6px 0">
+        ${producao30.toLocaleString(
+          'pt-BR',
+          {maximumFractionDigits:1}
+        )} kg
+      </h2>
+
+    </div>
+
+
+    <h3>Atenção agora</h3>
+
+    ${
+      atrasados.length || hojeLista.length
+      ?`
+        ${atrasados
+          .sort((a,b)=>
+            (a.data_aplicacao||'')
+              .localeCompare(b.data_aplicacao||'')
+          )
+          .slice(0,6)
+          .map(cardManejo)
+          .join('')
+        }
+
+        ${hojeLista
+          .slice(0,6)
+          .map(cardManejo)
+          .join('')
+        }
+      `
+      :`
+        <div class="empty">
+          Nenhum manejo atrasado ou previsto para hoje.
+        </div>
+      `
+    }
+
+
+    <h3>Próximos 7 dias</h3>
+
+    ${
+      proximos.length
+      ?proximos
+        .sort((a,b)=>
+          (a.data_aplicacao||'')
+            .localeCompare(b.data_aplicacao||'')
+        )
+        .slice(0,8)
+        .map(cardManejo)
+        .join('')
+      :`
+        <div class="empty">
+          Nenhum manejo programado para os próximos 7 dias.
+        </div>
+      `
+    }
+
+
+    <h3>Produção — últimos 30 dias</h3>
+
+    ${
+      ranking.length
+      ?ranking.map(r=>`
+
+        <div
+          class="card card-click"
+          data-edit-produtor="${esc(r.produtor.id)}">
+
+          <div class="card-row">
+
+            <div>
+
+              <h4>
+                ${esc(r.produtor.nome)}
+              </h4>
+
+              <div class="meta">
+                Produção registrada
+              </div>
+
+            </div>
+
+            <span class="pill">
+              ${r.kg.toLocaleString(
+                'pt-BR',
+                {maximumFractionDigits:1}
+              )} kg
+            </span>
+
+          </div>
+
+          <div class="edit-hint">
+            Toque para abrir a ficha
+          </div>
+
+        </div>
+
+      `).join('')
+      :`
+        <div class="empty">
+          Nenhuma produção registrada nos últimos 30 dias.
+        </div>
+      `
+    }
+
+  `;
+}
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
 function renderPropriedades(){const el=$('#propriedadesList');el.innerHTML=state.propriedades.length?state.propriedades.map(p=>`<div class="card card-click" data-edit-propriedade="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">Produtor: ${esc(nameBy(state.produtores,p.produtor_id))}</div><div class="meta">${esc(p.municipio||'')} • ${Number(p.area_total_ha||0).toLocaleString('pt-BR')} ha</div><div class="meta">Protocolo: ${esc(p.protocolo||'automático')}</div></div><span class="pill gold">${state.talhoes.filter(t=>t.propriedade_id===p.id).length} talhões</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhuma propriedade cadastrada.</div>'}
 function renderTalhoes(){const el=$('#talhoesList');el.innerHTML=state.talhoes.length?state.talhoes.map(t=>`<div class="card card-click" data-edit-talhao="${t.id}"><div class="card-row"><div><h4>${esc(t.nome)}</h4><div class="meta">${esc(nameBy(state.propriedades,t.propriedade_id))}</div><div class="meta">Área: ${Number(t.area_ha||0).toLocaleString('pt-BR')} ha</div></div><span class="pill">${state.safras.filter(s=>s.talhao_id===t.id).length} safra(s)</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum talhão cadastrado.</div>'}
@@ -1845,12 +2393,12 @@ function openAdubacao(sid){
       data_aplicacao:
         fd.get('data_aplicacao'),
 status:
-  fd.get('data_aplicacao')>hoje
+  fd.get('data_aplicacao')>=hoje
     ?'programada'
     :'realizada',
 
 data_realizacao:
-  fd.get('data_aplicacao')>hoje
+  fd.get('data_aplicacao')>=hoje
     ?null
     :fd.get('data_aplicacao'),
       tipo:
@@ -2286,6 +2834,16 @@ if(itens.some(x=>x.dose==='' || x.unidade==='')){
 
       data_aplicacao:
         fd.get('data_aplicacao'),
+      
+      status:
+    fd.get('data_aplicacao')>=hoje
+      ?'programada'
+      :'realizada',
+
+  data_realizacao:
+    fd.get('data_aplicacao')>=hoje
+      ?null
+      :fd.get('data_aplicacao'),
 
       finalidade:'Coquetel',
 
