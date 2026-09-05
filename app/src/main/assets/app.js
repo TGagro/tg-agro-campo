@@ -281,35 +281,53 @@ async function api(path,opts={}){const res=await fetch(SUPABASE_URL+path,{...opt
 function saveSession(s){state.session=s;localStorage.setItem('tg_session',JSON.stringify(s||null))}
 async function refreshSession(){const s=JSON.parse(localStorage.getItem('tg_session')||'null');if(!s?.refresh_token)return false;try{const n=await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',auth:false,body:JSON.stringify({refresh_token:s.refresh_token})});saveSession(n);state.session=n;return true}catch{return false}}
 async function login(email,password){return api('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})}
+let recuperarSenhaPendente=null;
+
+window.onRecuperarSenhaResult=
+function(ok,resposta){
+
+  if(!recuperarSenhaPendente)return;
+
+  const p=
+    recuperarSenhaPendente;
+
+  recuperarSenhaPendente=null;
+
+  if(ok){
+    p.resolve(resposta);
+  }else{
+    p.reject(
+      new Error(
+        resposta ||
+        'Erro ao recuperar senha'
+      )
+    );
+  }
+};
+
 async function recuperarSenha(email){
 
-  const url=
-    SUPABASE_URL+'/auth/v1/recover';
+  if(
+    window.AndroidTG &&
+    typeof AndroidTG.recuperarSenha==='function'
+  ){
 
-  const res=await fetch(url,{
-    method:'POST',
+    return new Promise(
+      (resolve,reject)=>{
 
-    headers:{
-      'apikey':SUPABASE_KEY,
-      'Content-Type':'application/json'
-    },
+        recuperarSenhaPendente={
+          resolve,
+          reject
+        };
 
-    body:JSON.stringify({
-      email:email
-    })
-  });
-
-  const texto=await res.text();
-
-  if(!res.ok){
-    throw new Error(
-      texto || `Erro ${res.status}`
+        AndroidTG.recuperarSenha(email);
+      }
     );
   }
 
-  return texto
-    ?JSON.parse(texto)
-    :null;
+  throw new Error(
+    'Comunicação com o Android indisponível'
+  );
 }
 function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function dateBR(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}
