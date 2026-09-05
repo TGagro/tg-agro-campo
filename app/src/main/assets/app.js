@@ -186,6 +186,180 @@ async function login(email,password){return api('/auth/v1/token?grant_type=passw
 function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function dateBR(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}
 function ageDays(d){if(!d)return null;return Math.max(0,Math.floor((Date.now()-new Date(d+'T12:00:00'))/86400000))}
+const PARAMETROS_CULTURAS={
+  maracuja:{
+    nome:'Maracujá',
+    acompanhamento:'Semanal e mensal',
+    periodoMeta:'ano',
+    metaTha:35,
+    cicloDias:null,
+    indicador:'kg/planta e t/ha'
+  },
+
+  banana:{
+    nome:'Banana',
+    acompanhamento:'Por colheita e por ciclo',
+    periodoMeta:'ciclo',
+    metaTha:25,
+    cicloDias:330,
+    indicador:'kg/cacho e t/ha'
+  },
+
+  melancia:{
+    nome:'Melancia',
+    acompanhamento:'Por colheita e por ciclo',
+    periodoMeta:'ciclo',
+    metaTha:30,
+    cicloDias:90,
+    indicador:'kg/planta, kg/fruto e t/ha'
+  },
+
+  abacaxi:{
+    nome:'Abacaxi',
+    acompanhamento:'Por colheita e por ciclo',
+    periodoMeta:'ciclo',
+    metaTha:35,
+    cicloDias:420,
+    indicador:'kg/fruto e t/ha'
+  },
+
+  pimentao:{
+    nome:'Pimentão',
+    acompanhamento:'Semanal e mensal',
+    periodoMeta:'ciclo',
+    metaTha:40,
+    cicloDias:180,
+    indicador:'kg/planta e t/ha'
+  }
+};
+
+function normalizarTexto(v=''){
+  return String(v)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .trim()
+    .toLowerCase();
+}
+
+function parametroCultura(cultura=''){
+  const c=normalizarTexto(cultura);
+
+  if(c.includes('maracuja')){
+    return PARAMETROS_CULTURAS.maracuja;
+  }
+
+  if(c.includes('banana')){
+    return PARAMETROS_CULTURAS.banana;
+  }
+
+  if(c.includes('melancia')){
+    return PARAMETROS_CULTURAS.melancia;
+  }
+
+  if(c.includes('abacaxi')){
+    return PARAMETROS_CULTURAS.abacaxi;
+  }
+
+  if(c.includes('pimentao')){
+    return PARAMETROS_CULTURAS.pimentao;
+  }
+
+  return {
+    nome:cultura||'Cultura',
+    acompanhamento:'Por colheita',
+    periodoMeta:'ciclo',
+    metaTha:null,
+    cicloDias:null,
+    indicador:'t/ha'
+  };
+}
+
+function plantasHaTeoricas(safra){
+  const linhas=Number(
+    safra?.espacamento_linhas_m||0
+  );
+
+  const plantas=Number(
+    safra?.espacamento_plantas_m||0
+  );
+
+  if(!linhas || !plantas)return 0;
+
+  return 10000/(linhas*plantas);
+}
+
+function plantasHaReais(safra){
+  const talhao=talhaoOfSafra(safra);
+
+  const area=Number(
+    talhao?.area_ha||0
+  );
+
+  const plantas=Number(
+    safra?.numero_plantas||0
+  );
+
+  if(!area || !plantas)return 0;
+
+  return plantas/area;
+}
+
+function resumoTecnicoSafra(safra){
+  const param=parametroCultura(
+    safra?.cultura
+  );
+
+  const talhao=talhaoOfSafra(safra);
+
+  const area=Number(
+    talhao?.area_ha||0
+  );
+
+  const totalKg=prodTotal(
+    safra.id
+  );
+
+  const tha=
+    area
+      ?totalKg/area/1000
+      :0;
+
+  const plantas=Number(
+    safra?.numero_plantas||0
+  );
+
+  const kgPlanta=
+    plantas
+      ?totalKg/plantas
+      :0;
+
+  const teorica=
+    plantasHaTeoricas(safra);
+
+  const real=
+    plantasHaReais(safra);
+
+  const meta=
+    Number(param.metaTha||0);
+
+  const atingimento=
+    meta
+      ?(tha/meta)*100
+      :0;
+
+  return {
+    param,
+    area,
+    totalKg,
+    tha,
+    plantas,
+    kgPlanta,
+    teorica,
+    real,
+    meta,
+    atingimento
+  };
+}
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),2600)}
 function cacheData(){localStorage.setItem('tg_cache',JSON.stringify({perfilUsuario:state.perfilUsuario,produtores:state.produtores,propriedades:state.propriedades,talhoes:state.talhoes,safras:state.safras,adubacoes:state.adubacoes,aplicacoes:state.aplicacoes,colheitas:state.colheitas}))}
 function loadCache(){try{Object.assign(state,JSON.parse(localStorage.getItem('tg_cache')||'{}'))}catch{}}
@@ -211,11 +385,13 @@ function renderProdutorLavoura(){
   if(!el)return;
 
   if(!state.safras.length){
-    el.innerHTML='<div class="empty">Nenhuma lavoura cadastrada.</div>';
+    el.innerHTML=
+      '<div class="empty">Nenhuma lavoura cadastrada.</div>';
     return;
   }
 
   el.innerHTML=state.safras.map(s=>{
+
     const t=state.talhoes.find(
       x=>String(x.id)===String(s.talhao_id)
     );
@@ -228,42 +404,220 @@ function renderProdutorLavoura(){
 
     const idade=ageDays(s.data_plantio);
 
+    const r=resumoTecnicoSafra(s);
+
+    const espacamento=
+      s.espacamento_linhas_m &&
+      s.espacamento_plantas_m
+        ?`${Number(s.espacamento_linhas_m)
+            .toLocaleString('pt-BR')} × ${
+            Number(s.espacamento_plantas_m)
+            .toLocaleString('pt-BR')
+          } m`
+        :'Não informado';
+
+    const pct=Math.min(
+      100,
+      Math.max(0,r.atingimento||0)
+    );
+
     return `
       <div class="card">
+
         <div class="card-row">
           <div>
             <h4>
               ${esc(s.cultura||'Lavoura')}
-              ${s.variedade?' • '+esc(s.variedade):''}
+              ${s.variedade
+                ?' • '+esc(s.variedade)
+                :''
+              }
             </h4>
 
             <div class="meta">
-              Propriedade: ${esc(p?.nome||'—')}
-            </div>
-
-            <div class="meta">
-              Talhão: ${esc(t?.nome||'—')}
-            </div>
-
-            <div class="meta">
-              Área: ${Number(t?.area_ha||0).toLocaleString('pt-BR')} ha
-            </div>
-
-            <div class="meta">
-              Plantio: ${dateBR(s.data_plantio)}
-            </div>
-
-            <div class="kpi-line">
-              <span class="pill">
-                ${idade===null?'Idade —':idade+' dias'}
-              </span>
-
-              <span class="pill">
-                ${esc(s.status||'ativa')}
-              </span>
+              ${esc(p?.nome||'Propriedade')}
+              •
+              ${esc(t?.nome||'Talhão')}
             </div>
           </div>
+
+          <span class="pill">
+            ${esc(s.status||'ativa')}
+          </span>
         </div>
+
+
+        <div style="
+          margin-top:14px;
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:10px;
+        ">
+
+          <div class="card" style="margin:0">
+            <div class="meta">Área</div>
+            <h4>
+              ${Number(r.area||0)
+                .toLocaleString('pt-BR')} ha
+            </h4>
+          </div>
+
+          <div class="card" style="margin:0">
+            <div class="meta">Plantas</div>
+            <h4>
+              ${Number(r.plantas||0)
+                .toLocaleString('pt-BR')}
+            </h4>
+          </div>
+
+          <div class="card" style="margin:0">
+            <div class="meta">
+              Produção acumulada
+            </div>
+
+            <h4>
+              ${Number(r.totalKg||0)
+                .toLocaleString(
+                  'pt-BR',
+                  {maximumFractionDigits:1}
+                )} kg
+            </h4>
+          </div>
+
+          <div class="card" style="margin:0">
+            <div class="meta">
+              Produtividade
+            </div>
+
+            <h4>
+              ${Number(r.tha||0)
+                .toFixed(2)
+                .replace('.',',')} t/ha
+            </h4>
+          </div>
+
+        </div>
+
+
+        <div style="
+          margin-top:14px;
+          padding-top:12px;
+          border-top:1px solid #ddd;
+        ">
+
+          <div class="meta">
+            <strong>Plantio:</strong>
+            ${dateBR(s.data_plantio)}
+          </div>
+
+          <div class="meta">
+            <strong>Idade:</strong>
+            ${idade===null
+              ?'—'
+              :idade+' dias'
+            }
+          </div>
+
+          <div class="meta">
+            <strong>Espaçamento:</strong>
+            ${espacamento}
+          </div>
+
+          <div class="meta">
+            <strong>População teórica:</strong>
+            ${
+              r.teorica
+                ?Math.round(r.teorica)
+                  .toLocaleString('pt-BR')+
+                  ' plantas/ha'
+                :'—'
+            }
+          </div>
+
+          <div class="meta">
+            <strong>População real:</strong>
+            ${
+              r.real
+                ?Math.round(r.real)
+                  .toLocaleString('pt-BR')+
+                  ' plantas/ha'
+                :'—'
+            }
+          </div>
+
+          <div class="meta">
+            <strong>Produção por planta:</strong>
+            ${
+              r.kgPlanta
+                ?r.kgPlanta
+                  .toFixed(2)
+                  .replace('.',',')+
+                  ' kg/planta'
+                :'—'
+            }
+          </div>
+
+          <div class="meta">
+            <strong>Acompanhamento:</strong>
+            ${esc(r.param.acompanhamento)}
+          </div>
+
+        </div>
+
+
+        ${
+          r.meta
+          ?`
+            <div style="
+              margin-top:16px;
+              padding:12px;
+              border-radius:12px;
+              background:rgba(0,0,0,.035);
+            ">
+
+              <div class="card-row">
+                <div>
+                  <strong>
+                    Meta de produtividade
+                  </strong>
+
+                  <div class="meta">
+                    ${r.meta
+                      .toLocaleString('pt-BR')}
+                    t/ha/${esc(r.param.periodoMeta)}
+                  </div>
+                </div>
+
+                <span class="pill gold">
+                  ${r.atingimento
+                    .toFixed(0)}%
+                </span>
+              </div>
+
+
+              <div style="
+                height:10px;
+                background:#ddd;
+                border-radius:20px;
+                overflow:hidden;
+                margin-top:10px;
+              ">
+
+                <div style="
+                  width:${pct}%;
+                  height:100%;
+                  background:#1d7a46;
+                  border-radius:20px;
+                ">
+                </div>
+
+              </div>
+
+            </div>
+          `
+          :''
+        }
+
       </div>
     `;
   }).join('');
@@ -2134,85 +2488,776 @@ if(itens.some(x=>x.dose==='' || x.unidade==='')){
         }
 
 function openColheita(sid){
+
   const hoje=new Date().toISOString().slice(0,10);
-  const s=state.safras.find(x=>x.id===sid);
-  const t=s?talhaoOfSafra(s):null;
+
+  const s=state.safras.find(
+    x=>String(x.id)===String(sid)
+  );
+
+  if(!s){
+    toast('Lavoura não encontrada');
+    return;
+  }
+
+  const t=talhaoOfSafra(s);
+  const param=parametroCultura(s.cultura);
+  const cultura=normalizarTexto(s.cultura);
 
   const registros=state.colheitas
-    .filter(c=>c.safra_id===sid)
-    .sort((a,b)=>(b.data_colheita||'').localeCompare(a.data_colheita||''));
+    .filter(c=>
+      String(c.safra_id)===String(sid)
+    )
+    .sort((a,b)=>
+      (b.data_colheita||'')
+        .localeCompare(a.data_colheita||'')
+    );
 
-  const totalKg=registros.reduce((n,c)=>n+Number(c.peso_kg||0),0);
-  const plantas=Number(s?.numero_plantas||0);
-  const area=Number(t?.area_ha||0);
+
+  // =========================
+  // CONFIGURAÇÃO POR CULTURA
+  // =========================
+
+  let labelQuantidade='Quantidade de frutos';
+  let nomeUnidade='frutos';
+  let mostrarQuantidade=true;
+
+  if(cultura.includes('banana')){
+    labelQuantidade='Quantidade de cachos';
+    nomeUnidade='cachos';
+  }
+
+  if(cultura.includes('melancia')){
+    labelQuantidade='Quantidade de frutos';
+    nomeUnidade='frutos';
+  }
+
+  if(cultura.includes('maracuja')){
+    labelQuantidade='Quantidade de frutos';
+    nomeUnidade='frutos';
+  }
+
+  if(cultura.includes('abacaxi')){
+    labelQuantidade='Quantidade de frutos';
+    nomeUnidade='frutos';
+  }
+
+  if(cultura.includes('pimentao')){
+    labelQuantidade='Quantidade de frutos (opcional)';
+    nomeUnidade='frutos';
+  }
+
+
+  // =========================
+  // RESUMOS
+  // =========================
+
+  const totalKg=registros.reduce(
+    (n,c)=>n+Number(c.peso_kg||0),
+    0
+  );
+
+  const totalQtd=registros.reduce(
+    (n,c)=>n+Number(c.quantidade_frutos||0),
+    0
+  );
+
+  const plantas=Number(
+    s.numero_plantas||0
+  );
+
+  const area=Number(
+    t?.area_ha||0
+  );
+
+  const kgPlanta=
+    plantas
+      ?totalKg/plantas
+      :0;
+
+  const tha=
+    area
+      ?totalKg/area/1000
+      :0;
+
+  const pesoMedio=
+    totalQtd
+      ?totalKg/totalQtd
+      :0;
+
+
+  // =========================
+  // PRODUÇÃO DO MÊS
+  // =========================
+
+  const mesAtual=hoje.slice(0,7);
+
+  const kgMes=registros
+    .filter(c=>
+      String(c.data_colheita||'')
+        .startsWith(mesAtual)
+    )
+    .reduce(
+      (n,c)=>n+Number(c.peso_kg||0),
+      0
+    );
+
+
+  // =========================
+  // PRODUÇÃO DA SEMANA
+  // =========================
+
+  const dataHoje=
+    new Date(hoje+'T12:00:00');
+
+  const diaSemana=
+    dataHoje.getDay()||7;
+
+  const inicioSemana=
+    new Date(dataHoje);
+
+  inicioSemana.setDate(
+    dataHoje.getDate()-diaSemana+1
+  );
+
+  const fimSemana=
+    new Date(inicioSemana);
+
+  fimSemana.setDate(
+    inicioSemana.getDate()+6
+  );
+
+  function dataISO(d){
+    const y=d.getFullYear();
+    const m=String(
+      d.getMonth()+1
+    ).padStart(2,'0');
+
+    const dia=String(
+      d.getDate()
+    ).padStart(2,'0');
+
+    return `${y}-${m}-${dia}`;
+  }
+
+  const iniSem=dataISO(inicioSemana);
+  const fimSem=dataISO(fimSemana);
+
+  const kgSemana=registros
+    .filter(c=>
+      (c.data_colheita||'')>=iniSem &&
+      (c.data_colheita||'')<=fimSem
+    )
+    .reduce(
+      (n,c)=>n+Number(c.peso_kg||0),
+      0
+    );
+
+
+  // =========================
+  // RECEITA
+  // =========================
+
+  const receita=registros.reduce(
+    (n,c)=>
+      n+
+      (
+        Number(c.peso_kg||0) *
+        Number(c.preco_kg||0)
+      ),
+    0
+  );
+
+
+  // =========================
+  // HISTÓRICO
+  // =========================
 
   const historico=registros.length
-    ?registros.map(c=>`
-      <div class="card">
-        <h4>${Number(c.peso_kg||0).toLocaleString('pt-BR')} kg</h4>
-        <div class="meta">Data: ${dateBR(c.data_colheita)}</div>
-        ${c.quantidade_frutos
-          ?`<div class="meta">Frutos: ${Number(c.quantidade_frutos).toLocaleString('pt-BR')}</div>`
-          :''
-        }
-        ${c.observacoes
-          ?`<div class="meta">${esc(c.observacoes)}</div>`
-          :''
-        }
+    ?registros.map(c=>{
+
+      const kg=Number(
+        c.peso_kg||0
+      );
+
+      const qtd=Number(
+        c.quantidade_frutos||0
+      );
+
+      const medio=
+        qtd
+          ?kg/qtd
+          :0;
+
+      return `
+        <div class="card">
+
+          <div class="card-row">
+
+            <div>
+
+              <h4>
+                ${kg.toLocaleString(
+                  'pt-BR',
+                  {maximumFractionDigits:2}
+                )} kg
+              </h4>
+
+              <div class="meta">
+                ${dateBR(c.data_colheita)}
+              </div>
+
+              ${
+                qtd
+                ?`
+                  <div class="meta">
+                    ${labelQuantidade}:
+                    ${qtd.toLocaleString('pt-BR')}
+                  </div>
+
+                  <div class="meta">
+                    Peso médio:
+                    ${medio
+                      .toFixed(2)
+                      .replace('.',',')} kg/${nomeUnidade.slice(0,-1)}
+                  </div>
+                `
+                :''
+              }
+
+              ${
+                c.preco_kg
+                ?`
+                  <div class="meta">
+                    Preço:
+                    R$ ${Number(c.preco_kg)
+                      .toFixed(2)
+                      .replace('.',',')}/kg
+                  </div>
+                `
+                :''
+              }
+
+              ${
+                c.observacoes
+                ?`
+                  <div
+                    class="meta"
+                    style="margin-top:5px">
+                    ${esc(c.observacoes)}
+                  </div>
+                `
+                :''
+              }
+
+            </div>
+
+          </div>
+
+        </div>
+      `;
+    }).join('')
+    :`
+      <div class="empty">
+        Nenhuma produção registrada nesta lavoura.
       </div>
-    `).join('')
-    :'<div class="empty">Nenhuma colheita registrada nesta lavoura.</div>';
+    `;
 
- modal('Nova Colheita',`
-    <input type="hidden" name="safra_id" value="${sid}">
 
-    <div class="field">
-      <label>Talhão</label>
-      <input value="${esc(t?.nome||'—')}" disabled>
-    </div>
+  // =========================
+  // FORMULÁRIO
+  // =========================
 
-    <div class="row2">
-      <div class="field">
-        <label>Data da colheita</label>
-        <input name="data_colheita" type="date" value="${hoje}" required>
-      </div>
-
-      <div class="field">
-        <label>Peso colhido (kg)</label>
-        <input id="pesoColheita" name="peso_kg"
-               type="number" step="0.001" required>
-      </div>
-    </div>
-
-    <div class="field">
-      <label>Quantidade de frutos (opcional)</label>
-      <input id="frutosColheita" name="quantidade_frutos" type="number">
-    </div>
-
-    <div class="field">
-      <label>Observações</label>
-      <textarea name="observacoes"></textarea>
-    </div>
+  modal(
+    'Registrar produção',
+    `
 
     <div class="card">
-      <h4>Produtividade calculada</h4>
-      <div id="calcColheita" class="meta">
-        Informe o peso da colheita.
+
+      <h4>
+        ${esc(s.cultura||'Lavoura')}
+        ${s.variedade
+          ?' • '+esc(s.variedade)
+          :''
+        }
+      </h4>
+
+      <div class="meta">
+        ${esc(t?.nome||'Talhão')}
+        •
+        ${Number(area||0)
+          .toLocaleString('pt-BR')} ha
       </div>
+
+      <div class="meta">
+        Acompanhamento:
+        ${esc(param.acompanhamento)}
+      </div>
+
     </div>
 
-    <h3>Resumo</h3>
-    <div class="meta">Total já colhido: ${totalKg.toLocaleString('pt-BR')} kg</div>
-    <div class="meta">Número de colheitas: ${registros.length}</div>
 
-    <h3>Histórico de colheitas</h3>
+    <input
+      type="hidden"
+      name="safra_id"
+      value="${esc(sid)}">
+
+
+    <div class="row2">
+
+      <div class="field">
+
+        <label>
+          Data da colheita
+        </label>
+
+        <input
+          name="data_colheita"
+          type="date"
+          value="${hoje}"
+          required>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Peso colhido (kg)
+        </label>
+
+        <input
+          id="pesoColheita"
+          name="peso_kg"
+          type="number"
+          step="0.001"
+          min="0"
+          required>
+
+      </div>
+
+    </div>
+
+
+    ${
+      mostrarQuantidade
+      ?`
+        <div class="field">
+
+          <label>
+            ${labelQuantidade}
+          </label>
+
+          <input
+            id="frutosColheita"
+            name="quantidade_frutos"
+            type="number"
+            min="0">
+
+        </div>
+      `
+      :''
+    }
+
+
+    <div class="field">
+
+      <label>
+        Preço por kg (R$) — opcional
+      </label>
+
+      <input
+        id="precoColheita"
+        name="preco_kg"
+        type="number"
+        step="0.01"
+        min="0">
+
+    </div>
+
+
+    <div class="field">
+
+      <label>
+        Observações
+      </label>
+
+      <textarea
+        name="observacoes"
+        placeholder="Qualidade, perdas, classificação, observações da colheita..."></textarea>
+
+    </div>
+
+
+    <div class="card">
+
+      <h4>
+        Resultado desta colheita
+      </h4>
+
+      <div
+        id="calcColheita"
+        class="meta">
+
+        Informe o peso da colheita.
+
+      </div>
+
+    </div>
+
+
+    <h3>
+      Desempenho da lavoura
+    </h3>
+
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+      ">
+
+
+      ${
+        cultura.includes('maracuja') ||
+        cultura.includes('pimentao')
+        ?`
+          <div class="card" style="margin:0">
+
+            <div class="meta">
+              Esta semana
+            </div>
+
+            <h4>
+              ${kgSemana.toLocaleString(
+                'pt-BR',
+                {maximumFractionDigits:1}
+              )} kg
+            </h4>
+
+          </div>
+        `
+        :''
+      }
+
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          Este mês
+        </div>
+
+        <h4>
+          ${kgMes.toLocaleString(
+            'pt-BR',
+            {maximumFractionDigits:1}
+          )} kg
+        </h4>
+
+      </div>
+
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          Acumulado
+        </div>
+
+        <h4>
+          ${totalKg.toLocaleString(
+            'pt-BR',
+            {maximumFractionDigits:1}
+          )} kg
+        </h4>
+
+      </div>
+
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          Produtividade
+        </div>
+
+        <h4>
+          ${tha
+            .toFixed(2)
+            .replace('.',',')} t/ha
+        </h4>
+
+      </div>
+
+
+      ${
+        plantas
+        ?`
+          <div class="card" style="margin:0">
+
+            <div class="meta">
+              Produção/planta
+            </div>
+
+            <h4>
+              ${kgPlanta
+                .toFixed(2)
+                .replace('.',',')} kg
+            </h4>
+
+          </div>
+        `
+        :''
+      }
+
+
+      ${
+        totalQtd
+        ?`
+          <div class="card" style="margin:0">
+
+            <div class="meta">
+              Peso médio
+            </div>
+
+            <h4>
+              ${pesoMedio
+                .toFixed(2)
+                .replace('.',',')} kg
+            </h4>
+
+          </div>
+        `
+        :''
+      }
+
+    </div>
+
+
+    ${
+      receita
+      ?`
+        <div
+          class="card"
+          style="margin-top:10px">
+
+          <div class="meta">
+            Receita registrada
+          </div>
+
+          <h4>
+            R$ ${receita.toLocaleString(
+              'pt-BR',
+              {
+                minimumFractionDigits:2,
+                maximumFractionDigits:2
+              }
+            )}
+          </h4>
+
+        </div>
+      `
+      :''
+    }
+
+
+    <h3>
+      Histórico de produção
+    </h3>
+
     ${historico}
-  `,submitSimple('colheitas'));
+
+    `,
+
+
+    async e=>{
+
+      e.preventDefault();
+
+      const form=e.currentTarget;
+      const btn=e.submitter;
+
+      if(btn)btn.disabled=true;
+
+      try{
+
+        const row=
+          formObj(form);
+
+        row.safra_id=sid;
+
+        await insertRow(
+          'colheitas',
+          row
+        );
+
+        closeModal();
+
+        await loadAll();
+
+        toast(
+          'Produção registrada com sucesso'
+        );
+
+      }catch(err){
+
+        console.error(err);
+
+        toast(
+          'Erro ao registrar produção'
+        );
+
+      }finally{
+
+        if(btn)btn.disabled=false;
+      }
+    }
+  );
+
+
+  // =========================
+  // CÁLCULO EM TEMPO REAL
+  // =========================
 
   setTimeout(()=>{
-    const peso=$('#pesoColheita');
-    const frutos=$('#frutosColheita');
-    const calc=$('#calcColheita');
+
+    const peso=
+      $('#pesoColheita');
+
+    const qtd=
+      $('#frutosColheita');
+
+    const preco=
+      $('#precoColheita');
+
+    const calc=
+      $('#calcColheita');
+
+
+    function atualizar(){
+
+      const kg=
+        Number(peso?.value||0);
+
+      const quantidade=
+        Number(qtd?.value||0);
+
+      const valorKg=
+        Number(preco?.value||0);
+
+
+      if(!kg){
+
+        calc.innerHTML=
+          'Informe o peso da colheita.';
+
+        return;
+      }
+
+
+      const porPlanta=
+        plantas
+          ?kg/plantas
+          :0;
+
+
+      const produtividadeColheita=
+        area
+          ?kg/area/1000
+          :0;
+
+
+      const pesoUnidade=
+        quantidade
+          ?kg/quantidade
+          :0;
+
+
+      const valor=
+        valorKg
+          ?kg*valorKg
+          :0;
+
+
+      calc.innerHTML=`
+
+        <strong>
+          ${kg.toLocaleString(
+            'pt-BR',
+            {maximumFractionDigits:2}
+          )} kg
+        </strong>
+
+        ${
+          area
+          ?`
+            <br>
+            Produtividade desta colheita:
+            ${produtividadeColheita
+              .toFixed(2)
+              .replace('.',',')} t/ha
+          `
+          :''
+        }
+
+        ${
+          plantas
+          ?`
+            <br>
+            ${porPlanta
+              .toFixed(3)
+              .replace('.',',')} kg/planta
+          `
+          :''
+        }
+
+        ${
+          quantidade
+          ?`
+            <br>
+            Peso médio:
+            ${pesoUnidade
+              .toFixed(2)
+              .replace('.',',')}
+            kg/${nomeUnidade.slice(0,-1)}
+          `
+          :''
+        }
+
+        ${
+          valor
+          ?`
+            <br>
+            Valor estimado:
+            <strong>
+              R$ ${valor.toLocaleString(
+                'pt-BR',
+                {
+                  minimumFractionDigits:2,
+                  maximumFractionDigits:2
+                }
+              )}
+            </strong>
+          `
+          :''
+        }
+      `;
+    }
+
+
+    if(peso){
+      peso.oninput=atualizar;
+    }
+
+    if(qtd){
+      qtd.oninput=atualizar;
+    }
+
+    if(preco){
+      preco.oninput=atualizar;
+    }
+
+  },0);
+}
 
     function atualizar(){
       const kg=Number(peso?.value||0);
