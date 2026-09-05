@@ -41,5 +41,96 @@
 <section id="page-produtor-historico" class="page"><div class="page-title"><h2>Histórico</h2><p>Manejos e atividades já realizados.</p></div><div id="produtorHistoricoContent" class="list"></div></section>
 
 <section id="page-produtor-ficha" class="page"><div class="page-title"><h2>Ficha técnica</h2><p>Seus dados, propriedade e informações técnicas.</p></div><div id="produtorFichaContent" class="list"></div></section>
-</main><nav id="gestorNav" class="bottomnav"><button class="nav-btn active" data-page="dashboard"><span class="ico">⌂</span>Início</button><button class="nav-btn" data-page="produtores"><span class="ico">♙</span>Produtores</button><button class="nav-btn" data-page="propriedades"><span class="ico">▣</span>Propriedades</button><button class="nav-btn" data-page="talhoes"><span class="ico">▤</span>Talhões</button><button class="nav-btn" data-page="safras"><span class="ico">◉</span>Lavouras</button></nav><nav id="produtorNav" class="bottomnav hidden"><button class="nav-btn active" data-page="produtor-inicio"><span class="ico">⌂</span>Início</button><button class="nav-btn" data-page="produtor-lavoura"><span class="ico">◉</span>Lavoura</button><button class="nav-btn" data-page="produtor-manejos"><span class="ico">✓</span>Manejos</button><button class="nav-btn" data-page="produtor-protocolo"><span class="ico">▤</span>Protocolo</button><button class="nav-btn" data-page="produtor-historico"><span class="ico">↺</span>Histórico</button><button class="nav-btn" data-page="produtor-ficha"><span class="ico">♙</span>Ficha</button></nav></div>
+<section id="page-agenda" class="page">
+  <div class="page-title">
+    <h2>Agenda</h2>
+    <p>Manejos e atividades dos produtores</p>
+  </div>
+
+  <div class="card">
+    <h3>📅 Agenda técnica</h3>
+    <p>Em breve vamos mostrar aqui Hoje, Semana, Mês, Atrasados e Realizados.</p>
+  </div>
+</section>
+
+
+<section id="page-relatorios" class="page">
+  <div class="page-title">
+    <h2>Relatórios</h2>
+    <p>Acompanhamento técnico e produtividade</p>
+  </div>
+
+  <div class="card">
+    <h3>📊 Relatórios técnicos</h3>
+    <p>Produção, produtividade, manejos e resultados por produtor.</p>
+  </div>
+</section>
+
+
+<section id="page-mais" class="page">
+  <div class="page-title">
+    <h2>Mais</h2>
+    <p>Administração do TG Agro Campo</p>
+  </div>
+
+  <div class="card" data-go="acessos-produtores" style="cursor:pointer;">
+    <h3>🔑 Acessos dos produtores</h3>
+    <p>Criar e administrar login dos produtores</p>
+  </div>
+
+  <div class="card">
+    <h3>🌱 Parâmetros das culturas</h3>
+    <p>Metas, ciclos e parâmetros técnicos</p>
+  </div>
+
+  <div class="card">
+    <h3>🔄 Sincronização</h3>
+    <p>Dados e registros offline</p>
+  </div>
+
+  <div class="card">
+    <h3>⚙️ Configurações</h3>
+    <p>Preferências do aplicativo</p>
+  </div>
+</section>
+
+
+<section id="page-acessos-produtores" class="page">
+  <div class="page-title">
+    <h2>Acessos dos produtores</h2>
+    <p>Gerencie quem pode entrar no aplicativo</p>
+  </div>
+
+  <button type="button" class="btn" data-go="mais">
+    ← Voltar
+  </button>
+
+  <div id="acessosProdutoresContent" style="margin-top:16px;">
+    <div class="card">
+      Carregando produtores...
+    </div>
+  </div>
+</section>
+
+</main><nav id="gestorNav" class="bottomnav">
+  <button class="nav-btn active" data-page="dashboard">
+    <span>🏠</span><small>Início</small>
+  </button>
+
+  <button class="nav-btn" data-page="produtores">
+    <span>👨‍🌾</span><small>Produtores</small>
+  </button>
+
+  <button class="nav-btn" data-page="agenda">
+    <span>📅</span><small>Agenda</small>
+  </button>
+
+  <button class="nav-btn" data-page="relatorios">
+    <span>📊</span><small>Relatórios</small>
+  </button>
+
+  <button class="nav-btn" data-page="mais">
+    <span>⚙️</span><small>Mais</small>
+  </button>
+</nav><nav id="produtorNav" class="bottomnav hidden"><button class="nav-btn active" data-page="produtor-inicio"><span class="ico">⌂</span>Início</button><button class="nav-btn" data-page="produtor-lavoura"><span class="ico">◉</span>Lavoura</button><button class="nav-btn" data-page="produtor-manejos"><span class="ico">✓</span>Manejos</button><button class="nav-btn" data-page="produtor-protocolo"><span class="ico">▤</span>Protocolo</button><button class="nav-btn" data-page="produtor-historico"><span class="ico">↺</span>Histórico</button><button class="nav-btn" data-page="produtor-ficha"><span class="ico">♙</span>Ficha</button></nav></div>
 <div id="modalWrap" class="hidden"></div><div id="toast" class="toast hidden"></div><script src="app.js"></script></body></html>
