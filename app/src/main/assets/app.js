@@ -283,14 +283,34 @@ async function refreshSession(){const s=JSON.parse(localStorage.getItem('tg_sess
 async function login(email,password){return api('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})}
 async function recuperarSenha(email){
 
-  return api('/auth/v1/recover',{
+  const url=
+    SUPABASE_URL+'/auth/v1/recover';
+
+  const res=await fetch(url,{
     method:'POST',
-    auth:false,
+
+    headers:{
+      'apikey':SUPABASE_KEY,
+      'Authorization':'Bearer '+SUPABASE_KEY,
+      'Content-Type':'application/json'
+    },
+
     body:JSON.stringify({
       email:email
     })
   });
 
+  const texto=await res.text();
+
+  if(!res.ok){
+    throw new Error(
+      texto || `Erro ${res.status}`
+    );
+  }
+
+  return texto
+    ?JSON.parse(texto)
+    :null;
 }
 function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function dateBR(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}
