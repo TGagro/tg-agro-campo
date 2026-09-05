@@ -9,3 +9,17 @@
 .card-click{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 .card-click:active{transform:scale(.985)}
 .edit-hint{font-size:11px;color:var(--green);font-weight:800;margin-top:10px}
+/* MENU INFERIOR MAIOR */
+.bottomnav .nav-btn small{
+  font-size:14px;
+  font-weight:600;
+}
+
+.bottomnav .nav-btn span{
+  font-size:22px;
+  line-height:1;
+}
+
+.bottomnav .nav-btn{
+  padding:10px 3px 9px;
+}
