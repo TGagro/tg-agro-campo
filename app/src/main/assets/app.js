@@ -3962,8 +3962,335 @@ function openColheita(sid){
 
   },0);
 }
+function openNovoProdutor(){
+
+  modal(
+    'Novo produtor',
+    `
+      <h3 style="margin-top:0;">👨‍🌾 Dados do produtor</h3>
+
+      <div class="field">
+        <label>Nome *</label>
+        <input
+          name="nome"
+          required
+          placeholder="Nome do produtor"
+        >
+      </div>
+
+      <div class="row2">
+
+        <div class="field">
+          <label>Telefone</label>
+          <input
+            name="telefone"
+            placeholder="(92) 99999-9999"
+          >
+        </div>
+
+        <div class="field">
+          <label>CPF/CNPJ</label>
+          <input
+            name="cpf_cnpj"
+            placeholder="CPF ou CNPJ"
+          >
+        </div>
+
+      </div>
+
+      <div class="row2">
+
+        <div class="field">
+          <label>Município</label>
+          <input
+            name="municipio"
+          >
+        </div>
+
+        <div class="field">
+          <label>Estado</label>
+          <input
+            name="estado"
+            value="AM"
+          >
+        </div>
+
+      </div>
+
+      <div class="field">
+        <label>Observações</label>
+        <textarea name="observacoes"></textarea>
+      </div>
+
+      <hr style="
+        border:none;
+        border-top:1px solid #ddd;
+        margin:22px 0;
+      ">
+
+      <h3>🔑 Acesso ao aplicativo</h3>
+
+      <div class="field">
+        <label>E-mail *</label>
+        <input
+          name="email_acesso"
+          type="email"
+          required
+          placeholder="produtor@email.com"
+        >
+      </div>
+
+      <div class="field">
+        <label>Senha inicial *</label>
+        <input
+          name="senha_acesso"
+          type="password"
+          minlength="6"
+          required
+          placeholder="Mínimo 6 caracteres"
+        >
+      </div>
+
+      <div class="field">
+        <label>Confirmar senha *</label>
+        <input
+          name="confirmar_senha"
+          type="password"
+          minlength="6"
+          required
+        >
+      </div>
+    `,
+    salvarNovoProdutorComAcesso
+  );
+
+  setTimeout(()=>{
+    const btn=
+      document.querySelector(
+        '#modalForm button[type="submit"]'
+      );
+
+    if(btn){
+      btn.textContent=
+        '👨‍🌾 CADASTRAR PRODUTOR';
+    }
+  },0);
+}
+async function salvarNovoProdutorComAcesso(event){
+
+  event.preventDefault();
+
+  const form=event.currentTarget;
+  const btn=event.submitter;
+
+  const nome=
+    form.querySelector('[name="nome"]')
+      ?.value.trim();
+
+  const telefone=
+    form.querySelector('[name="telefone"]')
+      ?.value.trim();
+
+  const cpfCnpj=
+    form.querySelector('[name="cpf_cnpj"]')
+      ?.value.trim();
+
+  const municipio=
+    form.querySelector('[name="municipio"]')
+      ?.value.trim();
+
+  const estado=
+    form.querySelector('[name="estado"]')
+      ?.value.trim();
+
+  const observacoes=
+    form.querySelector('[name="observacoes"]')
+      ?.value.trim();
+
+  const email=
+    form.querySelector('[name="email_acesso"]')
+      ?.value.trim().toLowerCase();
+
+  const senha=
+    form.querySelector('[name="senha_acesso"]')
+      ?.value;
+
+  const confirmarSenha=
+    form.querySelector('[name="confirmar_senha"]')
+      ?.value;
+
+
+  if(!nome || !email || !senha){
+    toast('Preencha nome, e-mail e senha');
+    return;
+  }
+
+
+  if(senha.length<6){
+    toast('A senha precisa ter pelo menos 6 caracteres');
+    return;
+  }
+
+
+  if(senha!==confirmarSenha){
+    toast('As senhas não são iguais');
+    return;
+  }
+
+
+  if(!navigator.onLine){
+    toast('É necessário internet para criar o acesso');
+    return;
+  }
+
+
+  if(btn){
+    btn.disabled=true;
+    btn.textContent='Criando produtor...';
+  }
+
+
+  let produtorId=null;
+
+
+  try{
+
+    /*
+      1. CRIA O PRODUTOR
+    */
+
+    const produtoresCriados=
+      await api(
+        '/rest/v1/produtores',
+        {
+          method:'POST',
+          body:JSON.stringify({
+            user_id:uid(),
+            nome,
+            telefone:telefone||null,
+            cpf_cnpj:cpfCnpj||null,
+            municipio:municipio||null,
+            estado:estado||'AM',
+            observacoes:observacoes||null
+          })
+        }
+      );
+
+
+    produtorId=
+      Array.isArray(produtoresCriados)
+        ?produtoresCriados[0]?.id
+        :produtoresCriados?.id;
+
+
+    if(!produtorId){
+      throw new Error(
+        'O produtor foi criado, mas o ID não foi retornado'
+      );
+    }
+
+
+    /*
+      2. CRIA O LOGIN DO PRODUTOR
+    */
+
+    if(btn){
+      btn.textContent='Criando acesso...';
+    }
+
+
+    const res=
+      await fetch(
+        SUPABASE_URL+
+        '/functions/v1/super-endpoint',
+        {
+          method:'POST',
+
+          headers:{
+            'Content-Type':'application/json',
+            'apikey':SUPABASE_KEY,
+            'Authorization':
+              'Bearer '+
+              state.session.access_token
+          },
+
+          body:JSON.stringify({
+            produtor_id:produtorId,
+            email,
+            password:senha
+          })
+        }
+      );
+
+
+    const dados=
+      await res.json();
+
+
+    if(!res.ok){
+      throw new Error(
+        dados?.error ||
+        'Erro ao criar acesso do produtor'
+      );
+    }
+
+
+    /*
+      3. ATUALIZA O APP
+    */
+
+    closeModal();
+
+    await loadAll();
+
+    toast(
+      '✓ Produtor e acesso criados com sucesso'
+    );
+
+
+  }catch(err){
+
+    console.error(
+      'Erro ao cadastrar produtor:',
+      err
+    );
+
+
+    /*
+      Se o produtor foi criado,
+      mas o login falhou,
+      remove o cadastro incompleto.
+    */
+
+    if(produtorId){
+
+      try{
+        await deleteRow(
+          'produtores',
+          produtorId
+        );
+      }catch(_){}
+
+    }
+
+
+    toast(
+      err?.message ||
+      'Não foi possível cadastrar o produtor'
+    );
+
+
+    if(btn){
+      btn.disabled=false;
+      btn.textContent=
+        '👨‍🌾 CADASTRAR PRODUTOR';
+    }
+
+  }
+
+}
 function openForm(type,sid){
- if(type==='produtor')return modal('Novo produtor',`<div class="field"><label>Nome</label><input name="nome" required></div><div class="row2"><div class="field"><label>Telefone</label><input name="telefone"></div><div class="field"><label>CPF/CNPJ</label><input name="cpf_cnpj"></div></div><div class="row2"><div class="field"><label>Município</label><input name="municipio"></div><div class="field"><label>Estado</label><input name="estado" value="AM"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('produtores'));
+ if(type==='produtor')return openNovoProdutor();`<div class="field"><label>Nome</label><input name="nome" required></div><div class="row2"><div class="field"><label>Telefone</label><input name="telefone"></div><div class="field"><label>CPF/CNPJ</label><input name="cpf_cnpj"></div></div><div class="row2"><div class="field"><label>Município</label><input name="municipio"></div><div class="field"><label>Estado</label><input name="estado" value="AM"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('produtores'));
  if(type==='propriedade')return modal('Nova propriedade',`<div class="field"><label>Produtor</label><select name="produtor_id" required><option value="">Selecione</option>${opts(state.produtores)}</select></div><div class="field"><label>Nome da propriedade</label><input name="nome" required></div><div class="row2"><div class="field"><label>Município</label><input name="municipio"></div><div class="field"><label>Área total (ha)</label><input name="area_total_ha" type="number" step="0.01"></div></div><div class="field"><label>Comunidade</label><input name="comunidade"></div>`,submitSimple('propriedades'));
  if(type==='talhao')return modal('Novo talhão',`<div class="field"><label>Propriedade</label><select name="propriedade_id" required><option value="">Selecione</option>${opts(state.propriedades)}</select></div><div class="row2"><div class="field"><label>Nome</label><input name="nome" required placeholder="Talhão 01"></div><div class="field"><label>Área (ha)</label><input name="area_ha" type="number" step="0.01"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('talhoes'));
  if(type==='safra')return modal('Nova lavoura',`<div class="field"><label>Talhão</label><select name="talhao_id" required><option value="">Selecione</option>${state.talhoes.map(t=>`<option value="${t.id}">${esc(nameBy(state.propriedades,t.propriedade_id))} • ${esc(t.nome)}</option>`).join('')}</select></div><div class="row2"><div class="field"><label>Cultura</label><input name="cultura" required placeholder="Maracujá"></div><div class="field"><label>Variedade</label><input name="variedade"></div></div><div class="row2"><div class="field"><label>Data de plantio</label><input name="data_plantio" type="date"></div><div class="field"><label>Nº de plantas</label><input name="numero_plantas" type="number"></div></div><div class="row2"><div class="field"><label>Espaçamento linhas (m)</label><input name="espacamento_linhas_m" type="number" step="0.01"></div><div class="field"><label>Espaçamento plantas (m)</label><input name="espacamento_plantas_m" type="number" step="0.01"></div></div>`,submitSimple('safras'));
