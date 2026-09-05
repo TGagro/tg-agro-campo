@@ -2718,7 +2718,7 @@ function openAplicacao(sid){
         <input
           class="aplic-produto"
           list="produtosAplicacao"
-          placeholder="Nome do produto"
+          placeholder="Nome do produto">
       </div>
 
       <div class="row2">
@@ -2730,7 +2730,7 @@ function openAplicacao(sid){
             class="aplic-dose"
             type="number"
             step="any"
-            min="0"
+            min="0">
           
         </div>
 
@@ -3814,24 +3814,6 @@ function openColheita(sid){
       preco.oninput=atualizar;
     }
 
-  },0);
-}
-
-    function atualizar(){
-      const kg=Number(peso?.value||0);
-      const qtd=Number(frutos?.value||0);
-      const porPlanta=plantas?kg/plantas:0;
-      const tha=area?kg/area/1000:0;
-      const pesoMedio=qtd?kg/qtd:0;
-
-      calc.innerHTML=
-        `${plantas?porPlanta.toFixed(3).replace('.',',')+' kg/planta<br>':''}`+
-        `${area?tha.toFixed(2).replace('.',',')+' t/ha<br>':''}`+
-        `${qtd?'Peso médio: '+pesoMedio.toFixed(3).replace('.',',')+' kg/fruto':''}`;
-    }
-
-    if(peso)peso.oninput=atualizar;
-    if(frutos)frutos.oninput=atualizar;
   },0);
 }
 function openForm(type,sid){
