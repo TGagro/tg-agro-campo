@@ -1,6 +1,18 @@
 const SUPABASE_URL='https://olekhksinesqosfmtdjf.supabase.co';
 const SUPABASE_KEY='sb_publishable_b_SgzfAoxE2Cs3KahdwLJw_hobIA1wd';
-const state={session:null,produtores:[],propriedades:[],talhoes:[],safras:[],adubacoes:[],aplicacoes:[],colheitas:[]};
+const state={
+  session:null,
+  perfilUsuario:null,
+  loginTipo:'tecnico',
+
+  produtores:[],
+  propriedades:[],
+  talhoes:[],
+  safras:[],
+  adubacoes:[],
+  aplicacoes:[],
+  colheitas:[]
+};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const uid=()=>state.session?.user?.id;
 async function loadPerfilUsuario(){
@@ -17,6 +29,110 @@ async function loadPerfilUsuario(){
 }
 function isProdutor(){
   return state.perfilUsuario?.tipo_usuario === 'produtor';
+}
+function isTecnico(){
+  return !isProdutor();
+}
+
+function selecionarTipoAcesso(tipo){
+  state.loginTipo=tipo;
+
+  const btTecnico=$('#loginTipoTecnico');
+  const btProdutor=$('#loginTipoProdutor');
+
+  if(btTecnico){
+    btTecnico.classList.toggle(
+      'btn-primary',
+      tipo==='tecnico'
+    );
+  }
+
+  if(btProdutor){
+    btProdutor.classList.toggle(
+      'btn-primary',
+      tipo==='produtor'
+    );
+  }
+
+  const titulo=$('#loginTipoTitulo');
+
+  if(titulo){
+    titulo.textContent=
+      tipo==='produtor'
+        ?'Acesso do Produtor'
+        :'Acesso Técnico';
+  }
+}
+
+function montarEscolhaLogin(){
+  const form=$('#loginForm');
+
+  if(!form || $('#tipoAcessoWrap'))return;
+
+  form.insertAdjacentHTML(
+    'afterbegin',
+    `
+    <div id="tipoAcessoWrap" style="margin-bottom:18px">
+
+      <div
+        style="
+          text-align:center;
+          font-weight:700;
+          margin-bottom:10px;
+          font-size:16px;
+        ">
+        Como deseja entrar?
+      </div>
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:10px;
+          margin-bottom:14px;
+        ">
+
+        <button
+          type="button"
+          id="loginTipoTecnico"
+          class="btn btn-primary">
+          👨‍🌾 TÉCNICO
+        </button>
+
+        <button
+          type="button"
+          id="loginTipoProdutor"
+          class="btn">
+          🌱 PRODUTOR
+        </button>
+
+      </div>
+
+      <div
+        id="loginTipoTitulo"
+        style="
+          text-align:center;
+          font-weight:700;
+          margin-bottom:14px;
+        ">
+        Acesso Técnico
+      </div>
+
+    </div>
+    `
+  );
+
+  $('#loginTipoTecnico').onclick=()=>{
+    selecionarTipoAcesso('tecnico');
+  };
+
+  $('#loginTipoProdutor').onclick=()=>{
+    selecionarTipoAcesso('produtor');
+  };
+
+  selecionarTipoAcesso(
+    state.loginTipo||'tecnico'
+  );
 }
 function filtrarDadosProdutor(){
   const pid=String(state.perfilUsuario?.produtor_id||'');
@@ -2156,7 +2272,17 @@ async function boot(){
     showLogin();
   }
 }
-function showLogin(){$('#loginView').classList.remove('hidden');$('#app').classList.add('hidden')}
+function showLogin(){
+
+  $('#loginView').classList.remove('hidden');
+  $('#app').classList.add('hidden');
+
+  montarEscolhaLogin();
+
+  const m=$('#loginMsg');
+
+  if(m)m.textContent='';
+}
 async function showApp(){
   $('#loginView').classList.add('hidden');
   $('#app').classList.remove('hidden');
@@ -2182,8 +2308,102 @@ async function showApp(){
   await loadAll();
   syncQueue();
 }
-$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const m=$('#loginMsg');m.textContent='Entrando...';try{const s=await login($('#email').value.trim(),$('#password').value);state.session=s;saveSession(s);m.textContent='';await loadPerfilUsuario();showApp()}catch(err){console.error(err);m.textContent='Não foi possível entrar. Confira e-mail e senha.'}})
-$('#logoutBtn').addEventListener('click',()=>{saveSession(null);state.session=null;showLogin()});
+$('#loginForm').addEventListener('submit',async e=>{
+
+  e.preventDefault();
+
+  const m=$('#loginMsg');
+
+  m.textContent='Entrando...';
+
+  try{
+
+    const s=await login(
+      $('#email').value.trim(),
+      $('#password').value
+    );
+
+    state.session=s;
+
+    saveSession(s);
+
+    state.perfilUsuario=null;
+
+    await loadPerfilUsuario();
+
+    /*
+      Compatibilidade:
+
+      Se não existir registro em perfis_usuarios,
+      consideramos a conta como Técnico.
+
+      Os produtores obrigatoriamente terão
+      tipo_usuario = produtor.
+    */
+
+    const tipoReal=
+      state.perfilUsuario?.tipo_usuario==='produtor'
+        ?'produtor'
+        :'tecnico';
+
+    if(tipoReal!==state.loginTipo){
+
+      const selecionado=
+        state.loginTipo==='produtor'
+          ?'Produtor'
+          :'Técnico';
+
+      const correto=
+        tipoReal==='produtor'
+          ?'Produtor'
+          :'Técnico';
+
+      saveSession(null);
+
+      state.session=null;
+      state.perfilUsuario=null;
+
+      m.textContent=
+        `Este login pertence ao acesso ${correto}. `+
+        `Selecione ${correto} para entrar.`;
+
+      return;
+    }
+
+    m.textContent='';
+
+    await showApp();
+
+  }catch(err){
+
+    console.error(err);
+
+    saveSession(null);
+
+    state.session=null;
+    state.perfilUsuario=null;
+
+    m.textContent=
+      'Não foi possível entrar. Confira e-mail e senha.';
+  }
+});
+$('#logoutBtn').addEventListener('click',()=>{
+
+  saveSession(null);
+
+  state.session=null;
+  state.perfilUsuario=null;
+
+  state.produtores=[];
+  state.propriedades=[];
+  state.talhoes=[];
+  state.safras=[];
+  state.adubacoes=[];
+  state.aplicacoes=[];
+  state.colheitas=[];
+
+  showLogin();
+});
 document.addEventListener('click',e=>{
  const rm=e.target.closest('[data-realizar-manejo]');
 if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id); 
