@@ -133,6 +133,91 @@ function montarEscolhaLogin(){
   selecionarTipoAcesso(
     state.loginTipo||'tecnico'
   );
+    if(!$('#esqueciSenha')){
+
+    const entrar=
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    if(entrar){
+
+      entrar.insertAdjacentHTML(
+        'afterend',
+        `
+        <button
+          type="button"
+          id="esqueciSenha"
+          style="
+            width:100%;
+            border:none;
+            background:transparent;
+            color:#356b4c;
+            font-weight:700;
+            margin-top:14px;
+            padding:10px;
+            cursor:pointer;
+          ">
+          Esqueci minha senha
+        </button>
+        `
+      );
+
+    }
+  }
+
+  const recuperar=$('#esqueciSenha');
+
+  if(recuperar){
+
+    recuperar.onclick=async()=>{
+
+      const campoEmail=$('#email');
+
+      const email=
+        campoEmail?.value
+          .trim()
+          .toLowerCase();
+
+      if(!email){
+
+        toast(
+          'Digite seu e-mail primeiro'
+        );
+
+        campoEmail?.focus();
+
+        return;
+      }
+
+      try{
+
+        recuperar.disabled=true;
+        recuperar.textContent=
+          'Enviando...';
+
+        await recuperarSenha(email);
+
+        toast(
+          'Link de recuperação enviado para o e-mail'
+        );
+
+      }catch(err){
+
+        console.error(err);
+
+        toast(
+          'Não foi possível enviar a recuperação'
+        );
+
+      }finally{
+
+        recuperar.disabled=false;
+        recuperar.textContent=
+          'Esqueci minha senha';
+      }
+    };
+  }
 }
 function filtrarDadosProdutor(){
   const pid=String(state.perfilUsuario?.produtor_id||'');
@@ -183,6 +268,17 @@ async function api(path,opts={}){const res=await fetch(SUPABASE_URL+path,{...opt
 function saveSession(s){state.session=s;localStorage.setItem('tg_session',JSON.stringify(s||null))}
 async function refreshSession(){const s=JSON.parse(localStorage.getItem('tg_session')||'null');if(!s?.refresh_token)return false;try{const n=await api('/auth/v1/token?grant_type=refresh_token',{method:'POST',auth:false,body:JSON.stringify({refresh_token:s.refresh_token})});saveSession(n);state.session=n;return true}catch{return false}}
 async function login(email,password){return api('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})}
+async function recuperarSenha(email){
+
+  return api('/auth/v1/recover',{
+    method:'POST',
+    auth:false,
+    body:JSON.stringify({
+      email:email
+    })
+  });
+
+}
 function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function dateBR(d){if(!d)return '—';return new Date(d+'T12:00:00').toLocaleDateString('pt-BR')}
 function ageDays(d){if(!d)return null;return Math.max(0,Math.floor((Date.now()-new Date(d+'T12:00:00'))/86400000))}
@@ -4013,4 +4109,34 @@ document.addEventListener('focusin', e => {
   }
 });
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+document.addEventListener('click',e=>{
+
+  const btn=e.target.closest('#toggleSenha');
+
+  if(!btn)return;
+
+  const campo=$('#password');
+
+  if(!campo)return;
+
+  const mostrando=
+    campo.type==='text';
+
+  campo.type=
+    mostrando
+      ?'password'
+      :'text';
+
+  btn.textContent=
+    mostrando
+      ?'👁'
+      :'🙈';
+
+  btn.setAttribute(
+    'aria-label',
+    mostrando
+      ?'Mostrar senha'
+      :'Ocultar senha'
+  );
+});
 boot();
