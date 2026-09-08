@@ -433,7 +433,97 @@
 
 </section>
 <section id="page-produtores" class="page"><div class="page-title"><h2>Produtores</h2><button class="btn btn-gold" data-open="produtor">+ Novo</button></div><div id="produtoresList" class="list"></div></section>
-<section id="page-propriedades" class="page"><div class="page-title"><h2>Propriedades</h2><button class="btn btn-gold" data-open="propriedade">+ Nova</button></div><div id="propriedadesList" class="list"></div></section>
+<section id="page-propriedades" class="page">
+
+  <div class="page-title">
+    <div>
+      <h2>Cadastro de campo</h2>
+      <p>Propriedades, talhões e lavouras</p>
+    </div>
+  </div>
+
+
+  <!-- =========================
+       PROPRIEDADES
+       ========================= -->
+
+  <div class="section-head">
+    <h3>🏡 Propriedades</h3>
+
+    <button
+      class="btn btn-gold"
+      type="button"
+      data-open="propriedade">
+      + Nova
+    </button>
+  </div>
+
+  <div
+    id="propriedadesList"
+    class="list">
+  </div>
+
+
+  <!-- =========================
+       TALHÕES
+       ========================= -->
+
+  <div
+    class="section-head"
+    style="margin-top:26px;">
+
+    <h3>🌱 Talhões</h3>
+
+    <button
+      class="btn btn-gold"
+      type="button"
+      data-open="talhao">
+      + Novo
+    </button>
+
+  </div>
+
+  <div
+    id="cadastroTalhoesList"
+    class="list">
+
+    <div class="empty">
+      Nenhum talhão cadastrado.
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       LAVOURAS
+       ========================= -->
+
+  <div
+    class="section-head"
+    style="margin-top:26px;">
+
+    <h3>🌾 Lavouras</h3>
+
+    <button
+      class="btn btn-gold"
+      type="button"
+      data-open="safra">
+      + Nova
+    </button>
+
+  </div>
+
+  <div
+    id="cadastroLavourasList"
+    class="list">
+
+    <div class="empty">
+      Nenhuma lavoura cadastrada.
+    </div>
+
+  </div>
+
+</section>
 <section id="page-talhoes" class="page"><div class="page-title"><h2>Talhões</h2><button class="btn btn-gold" data-open="talhao">+ Novo</button></div><div id="talhoesList" class="list"></div></section>
 <section id="page-safras" class="page"><div class="page-title"><h2>Lavouras</h2><button class="btn btn-gold" data-open="safra">+ Nova</button></div><div id="safrasList" class="list"></div></section>
 <section id="page-produtor-inicio" class="page"><div class="page-title"><h2>Início</h2><p>Resumo da sua propriedade e da sua lavoura.</p></div><div id="produtorInicioContent" class="list"></div></section>
