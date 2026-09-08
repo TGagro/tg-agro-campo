@@ -3966,8 +3966,10 @@ function openNovoProdutor(){
     };
   }
 
-},0); 
-  
+},0);
+
+}  
+
 async function salvarNovoProdutorComAcesso(event){
 
   event.preventDefault();
