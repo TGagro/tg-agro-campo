@@ -2100,56 +2100,13 @@ ${
 
 if(excluirBtn){
 
-  excluirBtn.onclick=async()=>{
+  excluirBtn.onclick=()=>{
 
-    const propriedades=
-      state.propriedades.filter(
-        x=>String(x.produtor_id)===String(id)
-      );
+    excluirProdutorCompleto(
+      id,
+      excluirBtn
+    );
 
-    if(propriedades.length){
-
-      toast(
-        'Exclua primeiro as propriedades deste produtor'
-      );
-
-      return;
-    }
-
-    if(
-      !confirm(
-        `Excluir definitivamente ${p.nome}?`
-      )
-    )return;
-
-    try{
-
-      excluirBtn.disabled=true;
-      excluirBtn.textContent='Excluindo...';
-
-      await deleteRow(
-        'produtores',
-        id
-      );
-
-      closeModal();
-
-      await loadAll();
-
-      toast('Produtor excluído');
-
-    }catch(err){
-
-      console.error(err);
-
-      excluirBtn.disabled=false;
-      excluirBtn.textContent=
-        '🗑️ EXCLUIR PRODUTOR';
-
-      toast(
-        'Não foi possível excluir o produtor'
-      );
-    }
   };
 }
  
