@@ -663,31 +663,16 @@ function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
  renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
 }
-function renderDash(){
+// =====================================================
+// DADOS DO NOVO PAINEL INICIAL
+// =====================================================
 
-  const el=$('#dashSafras');
-  if(!el)return;
+function manejosDashboardTG(){
 
-  const hoje=hojeLocalISO();
-
-  const d7=new Date();
-  d7.setDate(d7.getDate()+7);
-
-  const limite7=[
-    d7.getFullYear(),
-    String(d7.getMonth()+1).padStart(2,'0'),
-    String(d7.getDate()).padStart(2,'0')
-  ].join('-');
-
-
-  // =========================
-  // TODOS OS MANEJOS
-  // =========================
-
-  const manejos=[];
+  const lista=[];
 
   state.adubacoes.forEach(a=>{
-    manejos.push({
+    lista.push({
       ...a,
       origem:'adubacao',
       tipo:'Adubação'
@@ -695,444 +680,1614 @@ function renderDash(){
   });
 
   state.aplicacoes.forEach(a=>{
-    manejos.push({
+    lista.push({
       ...a,
       origem:'aplicacao',
       tipo:'Borrifação'
     });
   });
 
+  return lista;
+}
 
-  const hojeLista=manejos.filter(
-    m=>statusManejoTG(m)==='hoje'
+
+function estruturaProdutorTG(produtorId){
+
+  const propriedades=
+    state.propriedades.filter(
+      p=>String(p.produtor_id)===
+         String(produtorId)
+    );
+
+  const propIds=
+    new Set(
+      propriedades.map(
+        p=>String(p.id)
+      )
+    );
+
+  const talhoes=
+    state.talhoes.filter(
+      t=>propIds.has(
+        String(t.propriedade_id)
+      )
+    );
+
+  const talhaoIds=
+    new Set(
+      talhoes.map(
+        t=>String(t.id)
+      )
+    );
+
+  const safras=
+    state.safras.filter(
+      s=>talhaoIds.has(
+        String(s.talhao_id)
+      )
+    );
+
+  const safraIds=
+    new Set(
+      safras.map(
+        s=>String(s.id)
+      )
+    );
+
+  const colheitas=
+    state.colheitas.filter(
+      c=>safraIds.has(
+        String(c.safra_id)
+      )
+    );
+
+  const manejos=
+    manejosDashboardTG().filter(
+      m=>safraIds.has(
+        String(m.safra_id)
+      )
+    );
+
+  return {
+    propriedades,
+    talhoes,
+    safras,
+    safraIds,
+    colheitas,
+    manejos
+  };
+}
+
+
+function producaoPeriodosTG(colheitas){
+
+  const hoje=hojeLocalISO();
+
+  const agora=
+    new Date();
+
+  const diaSemana=
+    agora.getDay()||7;
+
+  const inicioSemana=
+    new Date(agora);
+
+  inicioSemana.setDate(
+    agora.getDate()-diaSemana+1
   );
 
-  const atrasados=manejos.filter(
-    m=>statusManejoTG(m)==='atrasado'
-  );
 
-  const proximos=manejos.filter(m=>
-    statusManejoTG(m)==='programado' &&
-    (m.data_aplicacao||'')<=limite7
-  );
+  function isoLocal(d){
 
-
-  // =========================
-  // REALIZADOS ÚLTIMOS 7 DIAS
-  // =========================
-
-  const dMenos7=new Date();
-  dMenos7.setDate(
-    dMenos7.getDate()-7
-  );
-
-  const limiteAnterior=[
-    dMenos7.getFullYear(),
-    String(dMenos7.getMonth()+1).padStart(2,'0'),
-    String(dMenos7.getDate()).padStart(2,'0')
-  ].join('-');
-
-
-  const realizados=manejos.filter(m=>{
-
-    if(statusManejoTG(m)!=='realizado'){
-      return false;
-    }
-
-    const data=
-      m.data_realizacao ||
-      m.data_aplicacao ||
-      '';
-
-    return data>=limiteAnterior;
-  });
-
-
-  // =========================
-  // PRODUÇÃO ÚLTIMOS 30 DIAS
-  // =========================
-
-  const d30=new Date();
-  d30.setDate(
-    d30.getDate()-30
-  );
-
-  const limite30=[
-    d30.getFullYear(),
-    String(d30.getMonth()+1).padStart(2,'0'),
-    String(d30.getDate()).padStart(2,'0')
-  ].join('-');
-
-
-  const colheitas30=state.colheitas.filter(
-    c=>(c.data_colheita||'')>=limite30
-  );
-
-  const producao30=colheitas30.reduce(
-    (n,c)=>n+Number(c.peso_kg||0),
-    0
-  );
-
-
-  // =========================
-  // RESUMO DO MANEJO
-  // =========================
-
-  function produtosManejo(m){
-
-    let itens=[];
-
-    try{
-
-      const bruto=
-        m.origem==='adubacao'
-          ?m.produto
-          :m.produto_comercial;
-
-      const j=JSON.parse(bruto||'');
-
-      if(Array.isArray(j)){
-        itens=j;
-      }
-
-    }catch(_){}
-
-
-    if(itens.length){
-
-      return itens
-        .filter(i=>i.produto)
-        .map(i=>i.produto)
-        .join(' + ');
-    }
-
-
-    if(m.origem==='adubacao'){
-      return m.produto||'Adubação';
-    }
-
-    return m.produto_comercial||
-      m.finalidade||
-      'Borrifação';
+    return [
+      d.getFullYear(),
+      String(
+        d.getMonth()+1
+      ).padStart(2,'0'),
+      String(
+        d.getDate()
+      ).padStart(2,'0')
+    ].join('-');
   }
 
 
-  function cardManejo(m){
+  const iniSemana=
+    isoLocal(inicioSemana);
 
-    const ctx=contextoSafra(
-      m.safra_id
+  const mes=
+    hoje.slice(0,7);
+
+  const ano=
+    hoje.slice(0,4);
+
+
+  let semana=0;
+  let mensal=0;
+  let anual=0;
+  let acumulado=0;
+
+
+  colheitas.forEach(c=>{
+
+    const data=
+      c.data_colheita||'';
+
+    const kg=
+      Number(c.peso_kg||0);
+
+    acumulado+=kg;
+
+
+    if(
+      data>=iniSemana &&
+      data<=hoje
+    ){
+      semana+=kg;
+    }
+
+
+    if(
+      data.startsWith(mes)
+    ){
+      mensal+=kg;
+    }
+
+
+    if(
+      data.startsWith(ano)
+    ){
+      anual+=kg;
+    }
+  });
+
+
+  return {
+    semana,
+    mensal,
+    anual,
+    acumulado
+  };
+}
+
+
+function produtoManejoDashboardTG(m){
+
+  try{
+
+    const bruto=
+      m.origem==='adubacao'
+        ?m.produto
+        :m.produto_comercial;
+
+    const itens=
+      JSON.parse(bruto||'');
+
+    if(Array.isArray(itens)){
+
+      const nomes=
+        itens
+          .filter(x=>x.produto)
+          .map(x=>x.produto);
+
+      if(nomes.length){
+        return nomes.join(' + ');
+      }
+    }
+
+  }catch(_){}
+
+
+  if(m.origem==='adubacao'){
+    return m.produto||'Adubação';
+  }
+
+  return (
+    m.produto_comercial ||
+    m.finalidade ||
+    'Borrifação'
+  );
+}
+
+
+// =====================================================
+// RELATÓRIO TÉCNICO DO PRODUTOR
+// =====================================================
+
+function viewRelatorioProdutorTG(id){
+
+  const produtor=
+    state.produtores.find(
+      p=>String(p.id)===String(id)
     );
 
-    const status=
-      statusManejoTG(m);
+  if(!produtor){
 
-    let textoStatus='Programado';
-    let classe='gold';
+    toast(
+      'Produtor não encontrado'
+    );
 
-    if(status==='hoje'){
-      textoStatus='Hoje';
-      classe='gold';
-    }
-
-    if(status==='atrasado'){
-      textoStatus='Atrasado';
-      classe='red';
-    }
-
-    if(status==='realizado'){
-      textoStatus='Realizado';
-      classe='';
-    }
+    return;
+  }
 
 
-    return `
-      <div
-        class="card card-click"
+  const dados=
+    estruturaProdutorTG(id);
+
+  const producao=
+    producaoPeriodosTG(
+      dados.colheitas
+    );
+
+
+  const safrasAtivas=
+    dados.safras.filter(
+      s=>String(
+        s.status||'ativa'
+      ).toLowerCase()!=='encerrada'
+    );
+
+
+  const atividadesPendentes=
+    dados.manejos
+      .filter(
+        m=>statusManejoTG(m)!==
+           'realizado'
+      )
+      .sort((a,b)=>
+        (a.data_aplicacao||'')
+          .localeCompare(
+            b.data_aplicacao||''
+          )
+      );
+
+
+  const areaTotal=
+    dados.propriedades.reduce(
+      (n,p)=>
+        n+
+        Number(
+          p.area_total_ha||0
+        ),
+      0
+    );
+
+
+  const w=
+    $('#modalWrap');
+
+  w.className=
+    'modal-backdrop';
+
+
+  w.innerHTML=`
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <h3>
+          Relatório técnico
+        </h3>
+
+        <button
+          class="close"
+          id="closeModal">
+          ×
+        </button>
+
+      </div>
+
+
+      <!-- PRODUTOR -->
+
+      <div class="card">
+
+        <h2 style="margin-top:0;">
+          👨‍🌾 ${esc(produtor.nome)}
+        </h2>
+
+        <div class="meta">
+          ${
+            esc(
+              produtor.municipio||
+              'Município não informado'
+            )
+          }
+          •
+          ${esc(produtor.estado||'AM')}
+        </div>
+
         ${
-          ctx.produtor
-            ?`data-edit-produtor="${esc(ctx.produtor.id)}"`
-            :''
-        }>
+          produtor.localidade
+          ?`
+            <div class="meta">
+              📍 ${esc(produtor.localidade)}
+            </div>
+          `
+          :''
+        }
 
-        <div class="card-row">
+      </div>
 
-          <div>
+
+      <!-- RESUMO -->
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:10px;
+        ">
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Propriedades
+          </div>
+
+          <h2 style="margin:5px 0;">
+            ${dados.propriedades.length}
+          </h2>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Talhões
+          </div>
+
+          <h2 style="margin:5px 0;">
+            ${dados.talhoes.length}
+          </h2>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Lavouras ativas
+          </div>
+
+          <h2 style="margin:5px 0;">
+            ${safrasAtivas.length}
+          </h2>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Área cadastrada
+          </div>
+
+          <h2 style="margin:5px 0;">
+            ${
+              areaTotal.toLocaleString(
+                'pt-BR',
+                {
+                  maximumFractionDigits:2
+                }
+              )
+            } ha
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <!-- PROPRIEDADES -->
+
+      <h3 style="margin-top:22px;">
+        🏡 Propriedades
+      </h3>
+
+      ${
+        dados.propriedades.length
+        ?dados.propriedades.map(p=>`
+
+          <div class="card">
 
             <h4>
-              ${esc(m.tipo)}
+              ${esc(p.nome)}
             </h4>
 
             <div class="meta">
-              <strong>
-                ${esc(
-                  ctx.produtor?.nome||
-                  'Produtor'
-                )}
-              </strong>
-            </div>
 
-            <div class="meta">
               ${esc(
-                ctx.safra?.cultura||
-                'Lavoura'
-              )}
-              ${
-                ctx.safra?.variedade
-                  ?' • '+esc(ctx.safra.variedade)
-                  :''
-              }
-            </div>
-
-            <div class="meta">
-              ${esc(
-                ctx.propriedade?.nome||
+                p.municipio||
                 ''
               )}
+
               ${
-                ctx.talhao?.nome
-                  ?' • '+esc(ctx.talhao.nome)
+                p.comunidade
+                  ?' • '+esc(p.comunidade)
                   :''
               }
-            </div>
-
-            <div
-              class="meta"
-              style="margin-top:5px">
-
-              ${esc(produtosManejo(m))}
 
             </div>
 
             <div class="meta">
-              Data:
-              ${dateBR(m.data_aplicacao)}
+
+              Área:
+              ${
+                Number(
+                  p.area_total_ha||0
+                )
+                .toLocaleString(
+                  'pt-BR'
+                )
+              } ha
+
             </div>
 
           </div>
 
-          <span class="pill ${classe}">
-            ${textoStatus}
-          </span>
+        `).join('')
+        :`
+          <div class="empty">
+            Nenhuma propriedade cadastrada.
+          </div>
+        `
+      }
+
+
+      <!-- TALHÕES -->
+
+      <h3>
+        🌱 Talhões
+      </h3>
+
+      ${
+        dados.talhoes.length
+        ?dados.talhoes.map(t=>{
+
+          const prop=
+            state.propriedades.find(
+              p=>String(p.id)===
+                 String(t.propriedade_id)
+            );
+
+          return `
+
+            <div class="card">
+
+              <h4>
+                ${esc(t.nome)}
+              </h4>
+
+              <div class="meta">
+                ${esc(
+                  prop?.nome||
+                  'Propriedade'
+                )}
+              </div>
+
+              <div class="meta">
+
+                Área:
+                ${
+                  Number(
+                    t.area_ha||0
+                  )
+                  .toLocaleString(
+                    'pt-BR'
+                  )
+                } ha
+
+              </div>
+
+            </div>
+          `;
+
+        }).join('')
+        :`
+          <div class="empty">
+            Nenhum talhão cadastrado.
+          </div>
+        `
+      }
+
+
+      <!-- LAVOURAS -->
+
+      <h3>
+        🌾 Lavouras
+      </h3>
+
+      ${
+        safrasAtivas.length
+        ?safrasAtivas.map(s=>{
+
+          const t=
+            talhaoOfSafra(s);
+
+          const prop=
+            t
+            ?state.propriedades.find(
+              p=>String(p.id)===
+                 String(t.propriedade_id)
+            )
+            :null;
+
+          const r=
+            resumoTecnicoSafra(s);
+
+          return `
+
+            <div class="card">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    ${esc(s.cultura)}
+                    ${
+                      s.variedade
+                        ?' • '+esc(s.variedade)
+                        :''
+                    }
+                  </h4>
+
+                  <div class="meta">
+
+                    ${esc(
+                      prop?.nome||
+                      ''
+                    )}
+
+                    ${
+                      t?.nome
+                        ?' • '+esc(t.nome)
+                        :''
+                    }
+
+                  </div>
+
+                  <div class="meta">
+                    Plantio:
+                    ${dateBR(
+                      s.data_plantio
+                    )}
+                  </div>
+
+                </div>
+
+                <span class="pill">
+                  ativa
+                </span>
+
+              </div>
+
+
+              <div
+                class="kpi-line"
+                style="margin-top:10px;">
+
+                <span class="pill gold">
+
+                  ${
+                    Number(
+                      r.totalKg||0
+                    ).toLocaleString(
+                      'pt-BR',
+                      {
+                        maximumFractionDigits:1
+                      }
+                    )
+                  } kg
+
+                </span>
+
+                <span class="pill">
+
+                  ${
+                    Number(
+                      r.tha||0
+                    )
+                    .toFixed(2)
+                    .replace('.',',')
+                  } t/ha
+
+                </span>
+
+              </div>
+
+            </div>
+          `;
+
+        }).join('')
+        :`
+          <div class="empty">
+            Nenhuma lavoura ativa.
+          </div>
+        `
+      }
+
+
+      <!-- ATIVIDADES -->
+
+      <h3>
+        📋 Atividades pendentes
+      </h3>
+
+      ${
+        atividadesPendentes.length
+        ?atividadesPendentes
+          .slice(0,8)
+          .map(m=>{
+
+            const ctx=
+              contextoSafra(
+                m.safra_id
+              );
+
+            const status=
+              statusManejoTG(m);
+
+            let texto='Programada';
+            let classe='gold';
+
+            if(status==='hoje'){
+              texto='Hoje';
+            }
+
+            if(status==='atrasado'){
+              texto='Atrasada';
+              classe='red';
+            }
+
+            return `
+
+              <div class="card">
+
+                <div class="card-row">
+
+                  <div>
+
+                    <h4>
+                      ${esc(m.tipo)}
+                    </h4>
+
+                    <div class="meta">
+                      ${
+                        esc(
+                          ctx.safra?.cultura||
+                          'Lavoura'
+                        )
+                      }
+                    </div>
+
+                    <div class="meta">
+
+                      ${
+                        esc(
+                          ctx.propriedade?.nome||
+                          ''
+                        )
+                      }
+
+                      ${
+                        ctx.talhao?.nome
+                          ?' • '+
+                           esc(ctx.talhao.nome)
+                          :''
+                      }
+
+                    </div>
+
+                    <div class="meta">
+                      ${
+                        esc(
+                          produtoManejoDashboardTG(m)
+                        )
+                      }
+                    </div>
+
+                    <div class="meta">
+                      ${dateBR(
+                        m.data_aplicacao
+                      )}
+                    </div>
+
+                  </div>
+
+                  <span
+                    class="pill ${classe}">
+                    ${texto}
+                  </span>
+
+                </div>
+
+              </div>
+            `;
+
+          }).join('')
+        :`
+          <div class="empty">
+            Nenhuma atividade pendente.
+          </div>
+        `
+      }
+
+
+      <!-- PRODUÇÃO -->
+
+      <h3>
+        📊 Produção
+      </h3>
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:10px;
+        ">
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Esta semana
+          </div>
+
+          <h3>
+            ${
+              producao.semana
+                .toLocaleString(
+                  'pt-BR',
+                  {
+                    maximumFractionDigits:1
+                  }
+                )
+            } kg
+          </h3>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Este mês
+          </div>
+
+          <h3>
+            ${
+              producao.mensal
+                .toLocaleString(
+                  'pt-BR',
+                  {
+                    maximumFractionDigits:1
+                  }
+                )
+            } kg
+          </h3>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Este ano
+          </div>
+
+          <h3>
+            ${
+              producao.anual
+                .toLocaleString(
+                  'pt-BR',
+                  {
+                    maximumFractionDigits:1
+                  }
+                )
+            } kg
+          </h3>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="margin:0;">
+
+          <div class="meta">
+            Acumulado
+          </div>
+
+          <h3>
+            ${
+              producao.acumulado
+                .toLocaleString(
+                  'pt-BR',
+                  {
+                    maximumFractionDigits:1
+                  }
+                )
+            } kg
+          </h3>
 
         </div>
 
       </div>
-    `;
+
+    </div>
+  `;
+
+
+  $('#closeModal').onclick=
+    closeModal;
+}
+
+
+// =====================================================
+// NOVA TELA INICIAL
+// =====================================================
+
+function renderDash(){
+
+  const produtoresEl=
+    $('#dashboardProdutoresLista');
+
+  const atividadesEl=
+    $('#dashboardAtividadesLista');
+
+  const produtividadeEl=
+    $('#dashboardProdutividadeLista');
+
+
+  if(
+    !produtoresEl ||
+    !atividadesEl ||
+    !produtividadeEl
+  ){
+    return;
+  }
+
+
+  const manejos=
+    manejosDashboardTG();
+
+
+  const pendentes=
+    manejos.filter(
+      m=>statusManejoTG(m)!==
+         'realizado'
+    );
+
+
+  // =========================
+  // CONTADORES DO TOPO
+  // =========================
+
+  const sProd=
+    $('#sProd');
+
+  if(sProd){
+    sProd.textContent=
+      state.produtores.length;
+  }
+
+
+  const atividadesTotal=
+    $('#dashboardAtividadesTotal');
+
+  if(atividadesTotal){
+
+    atividadesTotal.textContent=
+      pendentes.length;
   }
 
 
   // =========================
-  // PRODUÇÃO POR PRODUTOR
+  // PRODUÇÃO TOTAL
   // =========================
 
-  const producaoPorProdutor={};
-
-  colheitas30.forEach(c=>{
-
-    const ctx=contextoSafra(
-      c.safra_id
+  const producaoGeral=
+    producaoPeriodosTG(
+      state.colheitas
     );
 
-    if(!ctx.produtor)return;
 
-    const id=String(
-      ctx.produtor.id
-    );
+  const semanaEl=
+    $('#dashboardProducaoSemana');
 
-    if(!producaoPorProdutor[id]){
+  const mesEl=
+    $('#dashboardProducaoMes');
 
-      producaoPorProdutor[id]={
-        produtor:ctx.produtor,
-        kg:0
-      };
-    }
-
-    producaoPorProdutor[id].kg+=
-      Number(c.peso_kg||0);
-  });
+  const anoEl=
+    $('#dashboardProducaoAno');
 
 
-  const ranking=Object.values(
-    producaoPorProdutor
-  ).sort(
-    (a,b)=>b.kg-a.kg
-  );
+  if(semanaEl){
 
-
-  // =========================
-  // TELA
-  // =========================
-
-  el.innerHTML=`
-
-    <h3>Visão geral</h3>
-
-    <div style="
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-      margin-bottom:18px;
-    ">
-
-      <div class="card" style="margin:0">
-        <div class="meta">
-          Manejos hoje
-        </div>
-
-        <h2 style="margin:5px 0">
-          ${hojeLista.length}
-        </h2>
-      </div>
-
-
-      <div class="card" style="margin:0">
-        <div class="meta">
-          Atrasados
-        </div>
-
-        <h2 style="margin:5px 0">
-          ${atrasados.length}
-        </h2>
-      </div>
-
-
-      <div class="card" style="margin:0">
-        <div class="meta">
-          Próximos 7 dias
-        </div>
-
-        <h2 style="margin:5px 0">
-          ${proximos.length}
-        </h2>
-      </div>
-
-
-      <div class="card" style="margin:0">
-        <div class="meta">
-          Realizados 7 dias
-        </div>
-
-        <h2 style="margin:5px 0">
-          ${realizados.length}
-        </h2>
-      </div>
-
-    </div>
-
-
-    <div class="card">
-
-      <div class="meta">
-        Produção registrada nos últimos 30 dias
-      </div>
-
-      <h2 style="margin:6px 0">
-        ${producao30.toLocaleString(
+    semanaEl.textContent=
+      producaoGeral.semana
+        .toLocaleString(
           'pt-BR',
-          {maximumFractionDigits:1}
-        )} kg
-      </h2>
+          {
+            maximumFractionDigits:1
+          }
+        )+' kg';
+  }
 
-    </div>
+
+  if(mesEl){
+
+    mesEl.textContent=
+      producaoGeral.mensal
+        .toLocaleString(
+          'pt-BR',
+          {
+            maximumFractionDigits:1
+          }
+        )+' kg';
+  }
 
 
-    <h3>Atenção agora</h3>
+  if(anoEl){
 
-    ${
-      atrasados.length || hojeLista.length
-      ?`
-        ${atrasados
-          .sort((a,b)=>
-            (a.data_aplicacao||'')
-              .localeCompare(b.data_aplicacao||'')
+    anoEl.textContent=
+      producaoGeral.anual
+        .toLocaleString(
+          'pt-BR',
+          {
+            maximumFractionDigits:1
+          }
+        )+' kg';
+  }
+
+
+  // =========================
+  // PRODUTORES E FICHAS
+  // =========================
+
+  if(!state.produtores.length){
+
+    produtoresEl.innerHTML=`
+      <div class="empty">
+        Nenhum produtor cadastrado.
+      </div>
+    `;
+
+  }else{
+
+    produtoresEl.innerHTML=
+      state.produtores
+        .slice(0,4)
+        .map(p=>{
+
+          const dados=
+            estruturaProdutorTG(
+              p.id
+            );
+
+
+          const ativas=
+            dados.safras.filter(
+              s=>String(
+                s.status||'ativa'
+              ).toLowerCase()!==
+                'encerrada'
+            );
+
+
+          const pend=
+            dados.manejos.filter(
+              m=>statusManejoTG(m)!==
+                 'realizado'
+            );
+
+
+          const culturas=[
+            ...new Set(
+              ativas
+                .map(s=>s.cultura)
+                .filter(Boolean)
+            )
+          ];
+
+
+          return `
+
+            <div
+              class="card card-click"
+              data-relatorio-produtor="${esc(p.id)}">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    👨‍🌾 ${esc(p.nome)}
+                  </h4>
+
+                  <div class="meta">
+
+                    ${
+                      esc(
+                        p.municipio||
+                        'Município não informado'
+                      )
+                    }
+
+                    •
+                    ${esc(p.estado||'AM')}
+
+                  </div>
+
+                  <div
+                    class="meta"
+                    style="margin-top:5px;">
+
+                    ${dados.propriedades.length}
+                    propriedade(s)
+
+                    •
+
+                    ${dados.talhoes.length}
+                    talhão(ões)
+
+                  </div>
+
+                  <div class="meta">
+
+                    ${ativas.length}
+                    lavoura(s) ativa(s)
+
+                  </div>
+
+                  ${
+                    culturas.length
+                    ?`
+                      <div class="meta">
+                        Cultura:
+                        <strong>
+                          ${esc(
+                            culturas.join(', ')
+                          )}
+                        </strong>
+                      </div>
+                    `
+                    :''
+                  }
+
+                </div>
+
+
+                <span
+                  class="pill ${
+                    pend.length
+                      ?'gold'
+                      :''
+                  }">
+
+                  ${pend.length}
+                  pend.
+
+                </span>
+
+              </div>
+
+
+              <div class="edit-hint">
+                Toque para abrir o relatório
+              </div>
+
+            </div>
+          `;
+
+        }).join('');
+  }
+
+
+  // =========================
+  // ATIVIDADES
+  // =========================
+
+  const ordemStatus={
+    atrasado:0,
+    hoje:1,
+    programado:2
+  };
+
+
+  const atividadesOrdenadas=
+    [...pendentes]
+      .sort((a,b)=>{
+
+        const sa=
+          statusManejoTG(a);
+
+        const sb=
+          statusManejoTG(b);
+
+        const oa=
+          ordemStatus[sa]??9;
+
+        const ob=
+          ordemStatus[sb]??9;
+
+        if(oa!==ob){
+          return oa-ob;
+        }
+
+        return (
+          a.data_aplicacao||''
+        ).localeCompare(
+          b.data_aplicacao||''
+        );
+      });
+
+
+  if(!atividadesOrdenadas.length){
+
+    atividadesEl.innerHTML=`
+      <div class="empty">
+        Nenhuma atividade pendente.
+      </div>
+    `;
+
+  }else{
+
+    atividadesEl.innerHTML=
+      atividadesOrdenadas
+        .slice(0,5)
+        .map(m=>{
+
+          const ctx=
+            contextoSafra(
+              m.safra_id
+            );
+
+          const status=
+            statusManejoTG(m);
+
+
+          let textoStatus=
+            'Programada';
+
+          let classe=
+            'gold';
+
+
+          if(status==='hoje'){
+
+            textoStatus='Hoje';
+          }
+
+
+          if(status==='atrasado'){
+
+            textoStatus='Atrasada';
+
+            classe='red';
+          }
+
+
+          return `
+
+            <div class="card">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    ${esc(m.tipo)}
+                  </h4>
+
+                  <div class="meta">
+
+                    <strong>
+                      ${
+                        esc(
+                          ctx.produtor?.nome||
+                          'Produtor'
+                        )
+                      }
+                    </strong>
+
+                  </div>
+
+                  <div class="meta">
+
+                    ${
+                      esc(
+                        ctx.safra?.cultura||
+                        'Lavoura'
+                      )
+                    }
+
+                    ${
+                      ctx.safra?.variedade
+                        ?' • '+
+                         esc(
+                           ctx.safra.variedade
+                         )
+                        :''
+                    }
+
+                  </div>
+
+                  <div class="meta">
+
+                    ${
+                      esc(
+                        ctx.propriedade?.nome||
+                        ''
+                      )
+                    }
+
+                    ${
+                      ctx.talhao?.nome
+                        ?' • '+
+                         esc(ctx.talhao.nome)
+                        :''
+                    }
+
+                  </div>
+
+                  <div
+                    class="meta"
+                    style="margin-top:5px;">
+
+                    ${
+                      esc(
+                        produtoManejoDashboardTG(m)
+                      )
+                    }
+
+                  </div>
+
+                  <div class="meta">
+
+                    Data:
+                    ${dateBR(
+                      m.data_aplicacao
+                    )}
+
+                  </div>
+
+                </div>
+
+
+                <span
+                  class="pill ${classe}">
+
+                  ${textoStatus}
+
+                </span>
+
+              </div>
+
+            </div>
+          `;
+
+        }).join('');
+  }
+
+
+  // =========================
+  // PRODUTIVIDADE POR PRODUTOR
+  // =========================
+
+  const ranking=
+    state.produtores
+      .map(p=>{
+
+        const dados=
+          estruturaProdutorTG(
+            p.id
+          );
+
+        const prod=
+          producaoPeriodosTG(
+            dados.colheitas
+          );
+
+        const culturas=[
+          ...new Set(
+            dados.safras
+              .filter(
+                s=>String(
+                  s.status||'ativa'
+                ).toLowerCase()!==
+                  'encerrada'
+              )
+              .map(s=>s.cultura)
+              .filter(Boolean)
           )
-          .slice(0,6)
-          .map(cardManejo)
-          .join('')
-        }
+        ];
 
-        ${hojeLista
-          .slice(0,6)
-          .map(cardManejo)
-          .join('')
-        }
-      `
-      :`
-        <div class="empty">
-          Nenhum manejo atrasado ou previsto para hoje.
-        </div>
-      `
-    }
+        return {
+          produtor:p,
+          dados,
+          prod,
+          culturas
+        };
+
+      })
+      .sort(
+        (a,b)=>
+          b.prod.anual-
+          a.prod.anual
+      );
 
 
-    <h3>Próximos 7 dias</h3>
+  if(!ranking.length){
 
-    ${
-      proximos.length
-      ?proximos
-        .sort((a,b)=>
-          (a.data_aplicacao||'')
-            .localeCompare(b.data_aplicacao||'')
-        )
-        .slice(0,8)
-        .map(cardManejo)
-        .join('')
-      :`
-        <div class="empty">
-          Nenhum manejo programado para os próximos 7 dias.
-        </div>
-      `
-    }
+    produtividadeEl.innerHTML=`
+      <div class="empty">
+        Nenhum produtor cadastrado.
+      </div>
+    `;
+
+  }else{
+
+    produtividadeEl.innerHTML=
+      ranking
+        .slice(0,5)
+        .map(r=>`
+
+          <div
+            class="card card-click"
+            data-relatorio-produtor="${
+              esc(r.produtor.id)
+            }">
+
+            <div class="card-row">
+
+              <div>
+
+                <h4>
+                  👨‍🌾 ${
+                    esc(
+                      r.produtor.nome
+                    )
+                  }
+                </h4>
+
+                <div class="meta">
+
+                  🌱 ${
+                    r.culturas.length
+                      ?esc(
+                        r.culturas.join(', ')
+                      )
+                      :'Sem lavoura ativa'
+                  }
+
+                </div>
+
+              </div>
 
 
-    <h3>Produção — últimos 30 dias</h3>
+              <span class="pill gold">
 
-    ${
-      ranking.length
-      ?ranking.map(r=>`
+                ${
+                  r.prod.anual
+                    .toLocaleString(
+                      'pt-BR',
+                      {
+                        maximumFractionDigits:1
+                      }
+                    )
+                } kg/ano
 
-        <div
-          class="card card-click"
-          data-edit-produtor="${esc(r.produtor.id)}">
+              </span>
 
-          <div class="card-row">
+            </div>
 
-            <div>
 
-              <h4>
-                ${esc(r.produtor.nome)}
-              </h4>
+            <div
+              style="
+                display:grid;
+                grid-template-columns:1fr 1fr 1fr;
+                gap:8px;
+                margin-top:14px;
+              ">
 
-              <div class="meta">
-                Produção registrada
+              <div>
+
+                <div class="meta">
+                  Semana
+                </div>
+
+                <strong>
+                  ${
+                    r.prod.semana
+                      .toLocaleString(
+                        'pt-BR',
+                        {
+                          maximumFractionDigits:1
+                        }
+                      )
+                  } kg
+                </strong>
+
+              </div>
+
+
+              <div>
+
+                <div class="meta">
+                  Mês
+                </div>
+
+                <strong>
+                  ${
+                    r.prod.mensal
+                      .toLocaleString(
+                        'pt-BR',
+                        {
+                          maximumFractionDigits:1
+                        }
+                      )
+                  } kg
+                </strong>
+
+              </div>
+
+
+              <div>
+
+                <div class="meta">
+                  Acumulado
+                </div>
+
+                <strong>
+                  ${
+                    r.prod.acumulado
+                      .toLocaleString(
+                        'pt-BR',
+                        {
+                          maximumFractionDigits:1
+                        }
+                      )
+                  } kg
+                </strong>
+
               </div>
 
             </div>
 
-            <span class="pill">
-              ${r.kg.toLocaleString(
-                'pt-BR',
-                {maximumFractionDigits:1}
-              )} kg
-            </span>
+
+            <div class="edit-hint">
+              Toque para ver o histórico técnico
+            </div>
 
           </div>
 
-          <div class="edit-hint">
-            Toque para abrir a ficha
-          </div>
+        `).join('');
+  }
 
-        </div>
 
-      `).join('')
-      :`
-        <div class="empty">
-          Nenhuma produção registrada nos últimos 30 dias.
-        </div>
-      `
-    }
+  // =========================
+  // CLIQUES
+  // =========================
 
-  `;
+  document
+    .querySelectorAll(
+      '[data-relatorio-produtor]'
+    )
+    .forEach(card=>{
+
+      card.onclick=()=>{
+
+        viewRelatorioProdutorTG(
+          card.dataset.relatorioProdutor
+        );
+      };
+    });
+
+
+  const prodBtn=
+    $('#dashboardProdutoresBtn');
+
+  const verProd=
+    $('#dashboardVerProdutores');
+
+
+  const abrirProdutores=()=>{
+
+    produtoresEl.scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+  };
+
+
+  if(prodBtn){
+    prodBtn.onclick=
+      abrirProdutores;
+  }
+
+  if(verProd){
+    verProd.onclick=
+      abrirProdutores;
+  }
+
+
+  const atividadesBtn=
+    $('#dashboardAtividadesBtn');
+
+  const verAtividades=
+    $('#dashboardVerAtividades');
+
+
+  const abrirAtividades=()=>{
+
+    atividadesEl.scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+  };
+
+
+  if(atividadesBtn){
+    atividadesBtn.onclick=
+      abrirAtividades;
+  }
+
+  if(verAtividades){
+    verAtividades.onclick=
+      abrirAtividades;
+  }
+
+
+  const produtividadeBtn=
+    $('#dashboardProdutividadeBtn');
+
+  const verProdutividade=
+    $('#dashboardVerProdutividade');
+
+
+  const abrirProdutividade=()=>{
+
+    produtividadeEl.scrollIntoView({
+      behavior:'smooth',
+      block:'start'
+    });
+  };
+
+
+  if(produtividadeBtn){
+    produtividadeBtn.onclick=
+      abrirProdutividade;
+  }
+
+  if(verProdutividade){
+    verProdutividade.onclick=
+      abrirProdutividade;
+  }
+
+
+  const antigo=
+    $('#dashSafras');
+
+  if(antigo){
+    antigo.innerHTML='';
+  }
 }
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
 function renderPropriedades(){const el=$('#propriedadesList');el.innerHTML=state.propriedades.length?state.propriedades.map(p=>`<div class="card card-click" data-edit-propriedade="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">Produtor: ${esc(nameBy(state.produtores,p.produtor_id))}</div><div class="meta">${esc(p.municipio||'')} • ${Number(p.area_total_ha||0).toLocaleString('pt-BR')} ha</div><div class="meta">Protocolo: ${esc(p.protocolo||'automático')}</div></div><span class="pill gold">${state.talhoes.filter(t=>t.propriedade_id===p.id).length} talhões</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhuma propriedade cadastrada.</div>'}
