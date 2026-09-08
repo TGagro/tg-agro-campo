@@ -2,6 +2,9 @@ package com.tgagro.campo;
 import android.webkit.JavascriptInterface;
 
 import org.json.JSONObject;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.webkit.GeolocationPermissions;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -78,6 +81,7 @@ root.requestApplyInsets();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
+        s.setGeolocationEnabled(true);
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
         // Necessário para o app local acessar a API HTTPS do Supabase.
@@ -91,7 +95,66 @@ root.requestApplyInsets();
         new WebAppInterface(),
         "AndroidTG"
 );
-        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebChromeClient(new WebChromeClient() {
+
+    @Override
+    public void onGeolocationPermissionsShowPrompt(
+            String origin,
+            GeolocationPermissions.Callback callback
+    ) {
+
+        if (
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+            checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+
+            callback.invoke(
+                origin,
+                true,
+                false
+            );
+
+        } else {
+
+            requestPermissions(
+                new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                },
+                1001
+            );
+
+            callback.invoke(
+                origin,
+                false,
+                false
+            );
+        }
+    }
+});
+        if (
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+    checkSelfPermission(
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ) != PackageManager.PERMISSION_GRANTED &&
+    checkSelfPermission(
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    ) != PackageManager.PERMISSION_GRANTED
+) {
+
+    requestPermissions(
+        new String[]{
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        },
+        1001
+    );
+}
         webView.loadUrl("file:///android_asset/index.html");
     }
 
