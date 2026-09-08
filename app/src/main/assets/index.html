@@ -65,13 +65,65 @@
     <p>Produção, produtividade, manejos e resultados por produtor.</p>
   </div>
 </section>
+<section id="page-financeiro" class="page">
 
+  <div class="page-title">
+    <div>
+      <h2>Financeiro</h2>
+      <p>Mensalidades, contratos e recibos</p>
+    </div>
+  </div>
 
+  <div class="card">
+    <div class="meta">Recebido este mês</div>
+    <h2>R$ 0,00</h2>
+  </div>
+
+  <div style="
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  ">
+
+    <div class="card" style="margin:0">
+      <div class="meta">A receber</div>
+      <h2>R$ 0,00</h2>
+    </div>
+
+    <div class="card" style="margin:0">
+      <div class="meta">Em atraso</div>
+      <h2>R$ 0,00</h2>
+    </div>
+
+  </div>
+
+  <h3 style="margin-top:24px;">
+    Mensalidades
+  </h3>
+
+  <div class="empty">
+    Nenhuma mensalidade cadastrada.
+  </div>
+
+</section>
+  
 <section id="page-mais" class="page">
   <div class="page-title">
     <h2>Mais</h2>
     <p>Administração do TG Agro Campo</p>
   </div>
+
+  <div class="card card-click" data-go="agenda">
+  <h3>📅 Agenda</h3>
+  <p>Visitas, manejos e compromissos</p>
+  <div class="edit-hint">Toque para abrir</div>
+</div>
+
+<div class="card card-click" data-go="relatorios">
+  <h3>📊 Relatórios</h3>
+  <p>Produção, produtividade e acompanhamento técnico</p>
+  <div class="edit-hint">Toque para abrir</div>
+</div>
 
   <div class="card" data-go="acessos-produtores" style="cursor:pointer;">
     <h3>🔑 Acessos dos produtores</h3>
