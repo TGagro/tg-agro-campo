@@ -3821,33 +3821,460 @@ function renderProdutorFicha(){
   `;
 }
 function renderProdutorInicio(){
-  const el=$('#produtorInicioContent');
-  if(!el)return;
+function renderProdutorInicio(){
+  const el = $('#produtorInicioContent');
+  if(!el) return;
 
-  const propriedade=state.propriedades[0]||null;
-  const talhao=state.talhoes[0]||null;
-  const safra=state.safras[0]||null;
+  const propriedade = state.propriedades[0] || null;
+  const safra = state.safras.find(s => s.status === 'ativa') || state.safras[0] || null;
+
+  let talhao = null;
+
+  if(safra){
+    talhao = state.talhoes.find(
+      t => String(t.id) === String(safra.talhao_id)
+    ) || null;
+  }
+
+  if(!talhao){
+    talhao = state.talhoes[0] || null;
+  }
 
   if(!propriedade && !safra){
-    el.innerHTML='<div class="empty">Informações da propriedade ainda não disponíveis.</div>';
+    el.innerHTML = `
+      <div class="empty">
+        Nenhuma informação cadastrada ainda.
+      </div>
+    `;
     return;
   }
 
-  const idade=safra?ageDays(safra.data_plantio):null;
+  const idade = safra?.data_plantio
+    ? ageDays(safra.data_plantio)
+    : null;
 
-  el.innerHTML=`
-    <div class="card">
-      <h4>${esc(propriedade?.nome||'Minha propriedade')}</h4>
-      <div class="meta"><strong>Área:</strong> ${esc(propriedade?.area_ha||'-')} ha</div>
+  const area =
+    propriedade?.area_total ??
+    propriedade?.area_ha ??
+    propriedade?.area ??
+    null;
+
+  const totalTalhoes = propriedade
+    ? state.talhoes.filter(
+        t => String(t.propriedade_id) === String(propriedade.id)
+      ).length
+    : 0;
+
+  const safrasAtivas = state.safras.filter(
+    s => String(s.status || '').toLowerCase() === 'ativa'
+  ).length;
+    // ===== PRÓXIMOS MANEJOS =====
+
+  const agora = new Date();
+
+  const hoje =
+    agora.getFullYear() + '-' +
+    String(agora.getMonth() + 1).padStart(2, '0') + '-' +
+    String(agora.getDate()).padStart(2, '0');
+
+  const idsSafrasAtivas = state.safras
+    .filter(s => String(s.status || '').toLowerCase() === 'ativa')
+    .map(s => String(s.id));
+
+  const manejos = [];
+
+  state.adubacoes
+    .filter(a =>
+      idsSafrasAtivas.includes(String(a.safra_id)) &&
+      !['realizado','realizada'].includes(
+        String(a.status || '').toLowerCase()
+      )
+    )
+    .forEach(a => {
+
+      let nome = 'Adubação';
+
+      try {
+        const itens = typeof a.produto === 'string'
+          ? JSON.parse(a.produto)
+          : a.produto;
+
+        if(Array.isArray(itens)){
+          const nomes = itens
+            .filter(i =>
+              i?.produto &&
+              String(i.produto).toLowerCase() !== 'nenhum'
+            )
+            .map(i => i.produto);
+
+          if(nomes.length){
+            nome = nomes.join(' + ');
+          }
+        }
+      } catch(e){}
+
+      manejos.push({
+        tipo: 'Adubação',
+        icone: '🌱',
+        data: a.data_aplicacao,
+        nome
+      });
+
+    });
+
+
+  state.aplicacoes
+    .filter(a =>
+      idsSafrasAtivas.includes(String(a.safra_id)) &&
+      !['realizado','realizada'].includes(
+        String(a.status || '').toLowerCase()
+      )
+    )
+    .forEach(a => {
+
+      let nome = a.finalidade || 'Borrifação';
+
+      try {
+        const itens = typeof a.produto_comercial === 'string'
+          ? JSON.parse(a.produto_comercial)
+          : a.produto_comercial;
+
+        if(Array.isArray(itens)){
+          const nomes = itens
+            .filter(i =>
+              i?.produto &&
+              String(i.produto).toLowerCase() !== 'nenhum'
+            )
+            .map(i => i.produto);
+
+          if(nomes.length){
+            nome = nomes.join(' + ');
+          }
+        }
+      } catch(e){}
+
+      manejos.push({
+        tipo: 'Borrifação',
+        icone: '💧',
+        data: a.data_aplicacao,
+        nome
+      });
+
+    });
+
+
+  manejos.sort((a,b) =>
+    String(a.data || '').localeCompare(String(b.data || ''))
+  );
+
+  const atrasados = manejos.filter(
+    m => m.data && m.data < hoje
+  );
+
+  const proximoManejo = manejos.find(
+    m => m.data && m.data >= hoje
+  ) || null;
+
+  el.innerHTML = `
+
+    <div style="
+      margin-bottom:10px;
+      font-size:14px;
+      color:#6f7973;
+    ">
+      Visão geral da sua propriedade e da sua lavoura
     </div>
 
     <div class="card">
-      <h4>${esc(safra?.cultura||'Lavoura')} ${safra?.variedade?'• '+esc(safra.variedade):''}</h4>
-      <div class="meta"><strong>Talhão:</strong> ${esc(talhao?.nome||'-')}</div>
-      <div class="meta"><strong>Plantio:</strong> ${safra?.data_plantio?dateBR(safra.data_plantio):'-'}</div>
-      <div class="meta"><strong>Idade:</strong> ${idade===null?'-':idade+' dias'}</div>
-      <div class="meta"><strong>Situação:</strong> ${esc(safra?.status||'-')}</div>
+
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+      ">
+
+        <div>
+          <div style="
+            font-size:13px;
+            color:#7a847e;
+            font-weight:700;
+            margin-bottom:5px;
+          ">
+            🏡 MINHA PROPRIEDADE
+          </div>
+
+          <h4 style="margin:0;">
+            ${esc(propriedade?.nome || 'Minha propriedade')}
+          </h4>
+        </div>
+
+        ${
+          safrasAtivas > 0
+          ? `
+            <span style="
+              background:#e8f5ec;
+              color:#237443;
+              padding:6px 10px;
+              border-radius:20px;
+              font-size:12px;
+              font-weight:700;
+              white-space:nowrap;
+            ">
+              ${safrasAtivas} safra${safrasAtivas > 1 ? 's' : ''} ativa${safrasAtivas > 1 ? 's' : ''}
+            </span>
+          `
+          : ''
+        }
+
+      </div>
+
+      <div style="
+        display:flex;
+        gap:25px;
+        margin-top:16px;
+      ">
+
+        <div>
+          <div style="
+            font-size:12px;
+            color:#89918d;
+          ">
+            Área
+          </div>
+
+          <strong>
+            ${area != null && area !== ''
+              ? `${esc(area)} ha`
+              : 'Não informada'}
+          </strong>
+        </div>
+
+        <div>
+          <div style="
+            font-size:12px;
+            color:#89918d;
+          ">
+            Talhões
+          </div>
+
+          <strong>${totalTalhoes}</strong>
+        </div>
+
+      </div>
+
     </div>
+
+
+    ${
+      safra
+      ? `
+        <div style="
+          font-size:13px;
+          color:#737d77;
+          font-weight:700;
+          margin:22px 4px 8px;
+        ">
+          🌱 MINHA LAVOURA
+        </div>
+
+        <div class="card">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:10px;
+          ">
+
+            <div>
+              <h4 style="
+                margin:0 0 3px;
+                font-size:20px;
+              ">
+                ${esc(safra.cultura || 'Lavoura')}
+                ${
+                  safra.variedade
+                  ? ` • ${esc(safra.variedade)}`
+                  : ''
+                }
+              </h4>
+
+              <div style="
+                color:#7d8781;
+                font-size:13px;
+              ">
+                ${esc(talhao?.nome || 'Talhão não informado')}
+              </div>
+            </div>
+
+            <span style="
+              background:#e8f5ec;
+              color:#237443;
+              padding:6px 10px;
+              border-radius:20px;
+              font-size:12px;
+              font-weight:700;
+              white-space:nowrap;
+            ">
+              ● ${esc(safra.status || 'ativa')}
+            </span>
+
+          </div>
+
+          <div style="
+            margin-top:18px;
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:14px;
+          ">
+
+            <div>
+              <div style="
+                color:#89918d;
+                font-size:12px;
+              ">
+                Plantio
+              </div>
+
+              <strong>
+                ${safra.data_plantio
+                  ? dateBR(safra.data_plantio)
+                  : '-'}
+              </strong>
+            </div>
+
+            <div>
+              <div style="
+                color:#89918d;
+                font-size:12px;
+              ">
+                Idade
+              </div>
+
+              <strong>
+                ${idade != null
+                  ? `${idade} dias`
+                  : '-'}
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+      `
+      : `
+        <div class="card">
+          <div class="empty">
+            Nenhuma safra cadastrada.
+          </div>
+        </div>
+      `
+    }
+    ${
+      atrasados.length > 0
+      ? `
+        <div style="
+          margin-top:18px;
+          background:#fff1f0;
+          border:1px solid #ffd1cd;
+          border-radius:16px;
+          padding:14px 16px;
+        ">
+          <div style="
+            color:#b63b32;
+            font-weight:800;
+            font-size:14px;
+          ">
+            🔔 ${atrasados.length}
+            manejo${atrasados.length > 1 ? 's' : ''}
+            atrasado${atrasados.length > 1 ? 's' : ''}
+          </div>
+
+          <div style="
+            color:#7c6865;
+            font-size:12px;
+            margin-top:4px;
+          ">
+            Consulte a aba Atividades para verificar.
+          </div>
+        </div>
+      `
+      : ''
+    }
+
+
+    <div style="
+      font-size:13px;
+      color:#737d77;
+      font-weight:700;
+      margin:22px 4px 8px;
+    ">
+      📅 PRÓXIMA ATIVIDADE
+    </div>
+
+
+    ${
+      proximoManejo
+      ? `
+        <div class="card">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            gap:12px;
+            align-items:flex-start;
+          ">
+
+            <div>
+
+              <div style="
+                font-size:18px;
+                font-weight:800;
+                color:#26352e;
+              ">
+                ${proximoManejo.icone}
+                ${esc(proximoManejo.tipo)}
+              </div>
+
+              <div style="
+                margin-top:7px;
+                color:#66716b;
+                font-size:14px;
+              ">
+                ${esc(proximoManejo.nome)}
+              </div>
+
+            </div>
+
+            <div style="
+              background:#eef5ef;
+              border-radius:12px;
+              padding:7px 10px;
+              font-weight:700;
+              font-size:12px;
+              color:#315f43;
+              white-space:nowrap;
+            ">
+              ${dateBR(proximoManejo.data)}
+            </div>
+
+          </div>
+
+        </div>
+      `
+      : `
+        <div class="card">
+          <div style="
+            text-align:center;
+            padding:8px;
+            color:#7c8680;
+          ">
+            ✅ Nenhuma atividade próxima.
+          </div>
+        </div>
+      `
+    }
   `;
 }
 function opts(arr,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}">${esc(x[label])}</option>`).join('')}
