@@ -1792,6 +1792,119 @@ async function deleteRow(table,id){
    method:'DELETE'
  });
 }
+
+async function excluirProdutorCompleto(id,btn=null){
+
+  const produtor=
+    state.produtores.find(
+      p=>String(p.id)===String(id)
+    );
+
+  if(!produtor){
+    toast('Produtor não encontrado');
+    return;
+  }
+
+
+  const propriedades=
+    state.propriedades.filter(
+      p=>String(p.produtor_id)===String(id)
+    );
+
+
+  if(propriedades.length){
+
+    toast(
+      'Exclua primeiro as propriedades deste produtor'
+    );
+
+    return;
+  }
+
+
+  const confirmar=confirm(
+    `Excluir definitivamente ${produtor.nome}?\n\n`+
+    `O cadastro e o acesso ao aplicativo serão excluídos.`
+  );
+
+  if(!confirmar)return;
+
+
+  try{
+
+    if(btn){
+      btn.disabled=true;
+      btn.textContent='Excluindo...';
+    }
+
+
+    const res=await fetch(
+      SUPABASE_URL+
+      '/functions/v1/super-endpoint',
+      {
+        method:'POST',
+
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':SUPABASE_KEY,
+          'Authorization':
+            'Bearer '+
+            state.session.access_token
+        },
+
+        body:JSON.stringify({
+          acao:'excluir_produtor',
+          produtor_id:id
+        })
+      }
+    );
+
+
+    const dados=
+      await res.json();
+
+
+    if(!res.ok){
+
+      throw new Error(
+        dados?.error ||
+        'Não foi possível excluir o produtor'
+      );
+    }
+
+
+    closeModal();
+
+    await loadAll();
+
+    toast(
+      '✓ Produtor e acesso excluídos'
+    );
+
+
+  }catch(err){
+
+    console.error(
+      'Erro ao excluir produtor:',
+      err
+    );
+
+    toast(
+      err?.message ||
+      'Erro ao excluir produtor'
+    );
+
+
+    if(btn){
+
+      btn.disabled=false;
+
+      btn.textContent=
+        '🗑️ EXCLUIR PRODUTOR';
+    }
+  }
+}
+
 function viewProdutor(id){
 
   const p=state.produtores.find(
@@ -1960,6 +2073,14 @@ ${
         ✏️ EDITAR DADOS
       </button>
 
+      <button
+  class="btn btn-danger btn-block"
+  type="button"
+  id="excluirProdutorFicha"
+  style="margin-top:10px;">
+  🗑️ EXCLUIR PRODUTOR
+</button>
+
     </div>
   `;
 
@@ -1974,6 +2095,63 @@ ${
 
     editProdutor(id);
   };
+
+  const excluirBtn=$('#excluirProdutorFicha');
+
+if(excluirBtn){
+
+  excluirBtn.onclick=async()=>{
+
+    const propriedades=
+      state.propriedades.filter(
+        x=>String(x.produtor_id)===String(id)
+      );
+
+    if(propriedades.length){
+
+      toast(
+        'Exclua primeiro as propriedades deste produtor'
+      );
+
+      return;
+    }
+
+    if(
+      !confirm(
+        `Excluir definitivamente ${p.nome}?`
+      )
+    )return;
+
+    try{
+
+      excluirBtn.disabled=true;
+      excluirBtn.textContent='Excluindo...';
+
+      await deleteRow(
+        'produtores',
+        id
+      );
+
+      closeModal();
+
+      await loadAll();
+
+      toast('Produtor excluído');
+
+    }catch(err){
+
+      console.error(err);
+
+      excluirBtn.disabled=false;
+      excluirBtn.textContent=
+        '🗑️ EXCLUIR PRODUTOR';
+
+      toast(
+        'Não foi possível excluir o produtor'
+      );
+    }
+  };
+}
  
 const mapaBtn=$('#abrirMapaProdutor');
 
