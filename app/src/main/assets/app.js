@@ -283,6 +283,67 @@ async function refreshSession(){const s=JSON.parse(localStorage.getItem('tg_sess
 async function login(email,password){return api('/auth/v1/token?grant_type=password',{method:'POST',auth:false,body:JSON.stringify({email,password})})}
 let recuperarSenhaPendente=null;
 
+window.onLocalizacaoTG=
+function(ok,latitude,longitude,mensagem){
+
+  const gpsBtn=
+    $('#capturarLocalizacaoProdutor');
+
+  const statusGps=
+    $('#statusLocalizacaoProdutor');
+
+  const campoLatitude=
+    $('#novoProdLatitude');
+
+  const campoLongitude=
+    $('#novoProdLongitude');
+
+
+  if(ok){
+
+    if(campoLatitude){
+      campoLatitude.value=latitude;
+    }
+
+    if(campoLongitude){
+      campoLongitude.value=longitude;
+    }
+
+    if(statusGps){
+      statusGps.innerHTML=
+        `✅ Localização registrada<br>`+
+        `${Number(latitude).toFixed(6)}, `+
+        `${Number(longitude).toFixed(6)}`;
+    }
+
+    if(gpsBtn){
+      gpsBtn.disabled=false;
+      gpsBtn.textContent=
+        '✅ LOCALIZAÇÃO CAPTURADA';
+    }
+
+    toast('Localização registrada');
+
+  }else{
+
+    if(statusGps){
+      statusGps.textContent=
+        mensagem ||
+        'Não foi possível obter a localização';
+    }
+
+    if(gpsBtn){
+      gpsBtn.disabled=false;
+      gpsBtn.textContent=
+        '📍 TENTAR NOVAMENTE';
+    }
+
+    toast(
+      mensagem ||
+      'Não foi possível acessar o GPS'
+    );
+  }
+};
 window.onRecuperarSenhaResult=
 function(ok,resposta){
 
@@ -3887,84 +3948,58 @@ function openNovoProdutor(){
     $('#novoProdLongitude');
 
 
-  if(gpsBtn){
+ if(gpsBtn){
 
-    gpsBtn.onclick=()=>{
+  gpsBtn.onclick=()=>{
 
-      if(!navigator.geolocation){
+    if(
+      !window.AndroidTG ||
+      typeof AndroidTG.capturarLocalizacao!=='function'
+    ){
 
-        toast(
-          'GPS não disponível neste aparelho'
-        );
-
-        return;
-      }
-
-
-      gpsBtn.disabled=true;
-      gpsBtn.textContent=
-        '📍 Localizando...';
-
-      statusGps.textContent=
-        'Buscando sua localização...';
-
-
-      navigator.geolocation.getCurrentPosition(
-
-        pos=>{
-
-          const lat=
-            pos.coords.latitude;
-
-          const lng=
-            pos.coords.longitude;
-
-
-          latitude.value=lat;
-          longitude.value=lng;
-
-
-          statusGps.innerHTML=
-            `✅ Localização registrada<br>`+
-            `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-
-
-          gpsBtn.textContent=
-            '✅ LOCALIZAÇÃO CAPTURADA';
-
-          gpsBtn.disabled=false;
-
-        },
-
-        err=>{
-
-          console.error(
-            'Erro GPS:',
-            err
-          );
-
-          statusGps.textContent=
-            'Não foi possível obter a localização';
-
-          gpsBtn.textContent=
-            '📍 TENTAR NOVAMENTE';
-
-          gpsBtn.disabled=false;
-
-          toast(
-            'Não foi possível acessar o GPS'
-          );
-        },
-
-        {
-          enableHighAccuracy:true,
-          timeout:15000,
-          maximumAge:0
-        }
+      toast(
+        'GPS do aplicativo indisponível'
       );
 
-    };
-  }
+      return;
+    }
+
+
+    gpsBtn.disabled=true;
+
+    gpsBtn.textContent=
+      '📍 Localizando...';
+
+
+    if(statusGps){
+      statusGps.textContent=
+        'Buscando sua localização...';
+    }
+
+
+    try{
+
+      AndroidTG.capturarLocalizacao();
+
+    }catch(err){
+
+      console.error(
+        'Erro GPS:',
+        err
+      );
+
+      gpsBtn.disabled=false;
+
+      gpsBtn.textContent=
+        '📍 TENTAR NOVAMENTE';
+
+      toast(
+        'Não foi possível acessar o GPS'
+      );
+    }
+
+  };
+}
 
 },0);
 
