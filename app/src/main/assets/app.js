@@ -1974,7 +1974,8 @@ ${
 
     editProdutor(id);
   };
-  const mapaBtn=$('#abrirMapaProdutor');
+ 
+const mapaBtn=$('#abrirMapaProdutor');
 
 if(mapaBtn){
 
@@ -1984,17 +1985,29 @@ if(mapaBtn){
     const lng=Number(p.longitude);
 
     if(!lat || !lng){
+
       toast('Localização não disponível');
       return;
     }
 
-    const url=
-      `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    if(
+      window.AndroidTG &&
+      typeof AndroidTG.abrirMapa==='function'
+    ){
 
-    window.location.href=url;
+      AndroidTG.abrirMapa(
+        lat,
+        lng
+      );
+
+    }else{
+
+      toast(
+        'Não foi possível abrir o mapa'
+      );
+    }
   };
 }
-
 
   $('#criarAcessoProdutor').onclick=
     async()=>{
