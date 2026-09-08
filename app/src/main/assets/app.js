@@ -1857,6 +1857,16 @@ function viewProdutor(id){
 
           <div>
   <div class="meta">
+    Município
+  </div>
+
+  <strong>
+    ${esc(p.municipio||'Não informado')}
+  </strong>
+</div>
+
+          <div>
+  <div class="meta">
     Estado
   </div>
 
@@ -2073,60 +2083,317 @@ if(mapaBtn){
       }
     };
 }
+
 function editProdutor(id){
- const p=state.produtores.find(x=>x.id===id);
- if(!p)return;
- modal('Editar produtor',`
- <div class="field"><label>Nome</label><input name="nome" required value="${esc(p.nome||'')}"></div>
- <div class="row2">
-   <div class="field"><label>Telefone</label><input name="telefone" value="${esc(p.telefone||'')}"></div>
-   <div class="field"><label>CPF/CNPJ</label><input name="cpf_cnpj" value="${esc(p.cpf_cnpj||'')}"></div>
- </div>
- <div class="row2">
-   <div class="field"><label>Município</label><input name="municipio" value="${esc(p.municipio||'')}"></div>
-   <div class="field"><label>Estado</label><input name="estado" value="${esc(p.estado||'AM')}"></div>
- </div>
- <div class="field"><label>Observações</label><textarea name="observacoes">${esc(p.observacoes||'')}</textarea></div>
- <button class="btn btn-danger btn-block" type="button" id="deleteProdutor">EXCLUIR PRODUTOR</button>
- `,async e=>{
-   e.preventDefault();
-   const btn=e.submitter;
-   if(btn)btn.disabled=true;
-   try{
-     await updateRow('produtores',id,formObj(e.currentTarget));
-     closeModal();
-     await loadAll();
-     toast('Produtor atualizado');
-   }catch(err){
-     console.error(err);
-     toast('Erro ao atualizar produtor');
-   }finally{
-     if(btn)btn.disabled=false;
-   }
- });
- setTimeout(()=>{
-   const del=$('#deleteProdutor');
-   if(del)del.onclick=async()=>{
-     const props=state.propriedades.filter(x=>x.produtor_id===id).length;
-     if(props){
-       toast('Exclua primeiro as propriedades deste produtor');
-       return;
-     }
-     if(!confirm('Excluir este produtor?'))return;
-     try{
-       await deleteRow('produtores',id);
-       closeModal();
-       await loadAll();
-       toast('Produtor excluído');
-     }catch(err){
-       console.error(err);
-       toast('Não foi possível excluir');
-     }
-   };
- },0);
+
+  const p=state.produtores.find(
+    x=>String(x.id)===String(id)
+  );
+
+  if(!p)return;
+
+
+  modal(
+    'Editar produtor',
+    `
+
+    <div class="field">
+      <label>Nome</label>
+
+      <input
+        name="nome"
+        required
+        value="${esc(p.nome||'')}">
+    </div>
+
+
+    <div class="row2">
+
+      <div class="field">
+        <label>Telefone</label>
+
+        <input
+          name="telefone"
+          value="${esc(p.telefone||'')}">
+      </div>
+
+
+      <div class="field">
+        <label>CPF/CNPJ</label>
+
+        <input
+          name="cpf_cnpj"
+          value="${esc(p.cpf_cnpj||'')}">
+      </div>
+
+    </div>
+
+
+    <div class="row2">
+
+      <div class="field">
+        <label>Município</label>
+
+        <input
+          name="municipio"
+          value="${esc(p.municipio||'')}">
+      </div>
+
+
+      <div class="field">
+        <label>Estado</label>
+
+        <input
+          name="estado"
+          value="${esc(p.estado||'AM')}">
+      </div>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>Localidade / Comunidade</label>
+
+      <input
+        name="localidade"
+        value="${esc(p.localidade||'')}"
+        placeholder="Ex.: Novo Remanso">
+
+    </div>
+
+
+    <input
+      type="hidden"
+      name="latitude"
+      id="novoProdLatitude"
+      value="${p.latitude??''}">
+
+
+    <input
+      type="hidden"
+      name="longitude"
+      id="novoProdLongitude"
+      value="${p.longitude??''}">
+
+
+    <button
+      type="button"
+      class="btn btn-block"
+      id="capturarLocalizacaoProdutor"
+      style="margin-bottom:8px;">
+
+      📍 ATUALIZAR LOCALIZAÇÃO
+
+    </button>
+
+
+    <div
+      id="statusLocalizacaoProdutor"
+      class="meta"
+      style="margin-bottom:16px;">
+
+      ${
+        p.latitude && p.longitude
+        ?`
+          ✅ Localização registrada<br>
+          ${Number(p.latitude).toFixed(6)},
+          ${Number(p.longitude).toFixed(6)}
+        `
+        :'Nenhuma localização registrada'
+      }
+
+    </div>
+
+
+    <div class="field">
+
+      <label>Observações</label>
+
+      <textarea
+        name="observacoes">${esc(p.observacoes||'')}</textarea>
+
+    </div>
+
+
+    <button
+      class="btn btn-danger btn-block"
+      type="button"
+      id="deleteProdutor">
+
+      EXCLUIR PRODUTOR
+
+    </button>
+
+    `,
+
+    async e=>{
+
+      e.preventDefault();
+
+      const btn=e.submitter;
+
+      if(btn)btn.disabled=true;
+
+      try{
+
+        await updateRow(
+          'produtores',
+          id,
+          formObj(e.currentTarget)
+        );
+
+        closeModal();
+
+        await loadAll();
+
+        toast('Produtor atualizado');
+
+      }catch(err){
+
+        console.error(err);
+
+        toast('Erro ao atualizar produtor');
+
+      }finally{
+
+        if(btn)btn.disabled=false;
+      }
+    }
+  );
+
+
+  setTimeout(()=>{
+
+    // =========================
+    // ATUALIZAR GPS
+    // =========================
+
+    const gpsBtn=
+      $('#capturarLocalizacaoProdutor');
+
+    const statusGps=
+      $('#statusLocalizacaoProdutor');
+
+
+    if(gpsBtn){
+
+      gpsBtn.onclick=()=>{
+
+        if(
+          !window.AndroidTG ||
+          typeof AndroidTG.capturarLocalizacao!=='function'
+        ){
+
+          toast(
+            'GPS do aplicativo indisponível'
+          );
+
+          return;
+        }
+
+
+        gpsBtn.disabled=true;
+
+        gpsBtn.textContent=
+          '📍 Localizando...';
+
+
+        if(statusGps){
+
+          statusGps.textContent=
+            'Buscando sua localização...';
+        }
+
+
+        try{
+
+          AndroidTG.capturarLocalizacao();
+
+        }catch(err){
+
+          console.error(
+            'Erro GPS:',
+            err
+          );
+
+          gpsBtn.disabled=false;
+
+          gpsBtn.textContent=
+            '📍 TENTAR NOVAMENTE';
+
+          toast(
+            'Não foi possível acessar o GPS'
+          );
+        }
+
+      };
+    }
+
+
+    // =========================
+    // EXCLUIR PRODUTOR
+    // =========================
+
+    const del=
+      $('#deleteProdutor');
+
+
+    if(del){
+
+      del.onclick=async()=>{
+
+        const props=
+          state.propriedades.filter(
+            x=>String(x.produtor_id)===String(id)
+          ).length;
+
+
+        if(props){
+
+          toast(
+            'Exclua primeiro as propriedades deste produtor'
+          );
+
+          return;
+        }
+
+
+        if(
+          !confirm(
+            'Excluir este produtor?'
+          )
+        )return;
+
+
+        try{
+
+          await deleteRow(
+            'produtores',
+            id
+          );
+
+          closeModal();
+
+          await loadAll();
+
+          toast(
+            'Produtor excluído'
+          );
+
+        }catch(err){
+
+          console.error(err);
+
+          toast(
+            'Não foi possível excluir'
+          );
+        }
+      };
+    }
+
+  },0);
 }
-
-
 function editPropriedade(id){
  const p=state.propriedades.find(x=>x.id===id);if(!p)return;
  modal('Editar propriedade',`
