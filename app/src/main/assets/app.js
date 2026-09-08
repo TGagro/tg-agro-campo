@@ -1794,30 +1794,47 @@ function viewProdutor(id){
             </strong>
           </div>
 
-
           <div>
-            <div class="meta">
-              Município
-            </div>
+  <div class="meta">
+    Estado
+  </div>
 
-            <strong>
-              ${esc(p.municipio||'Não informado')}
-            </strong>
-          </div>
+  <strong>
+    ${esc(p.estado||'AM')}
+  </strong>
+</div>
 
+<div>
+  <div class="meta">
+    Localidade / Comunidade
+  </div>
 
-          <div>
-            <div class="meta">
-              Estado
-            </div>
+  <strong>
+    ${esc(p.localidade||'Não informado')}
+  </strong>
+</div>
 
-            <strong>
-              ${esc(p.estado||'AM')}
-            </strong>
-          </div>
+${
+  p.latitude && p.longitude
+  ?`
+    <button
+      type="button"
+      class="btn btn-block"
+      id="abrirMapaProdutor"
+      style="margin-top:16px;">
+      🗺️ ABRIR NO MAPA
+    </button>
 
-        </div>
+    <div
+      class="meta"
+      style="margin-top:7px;text-align:center;">
+      📍 Localização registrada
+    </div>
+  `
+  :''
+}
 
+</div>
 
         ${
           p.observacoes
@@ -1886,6 +1903,26 @@ function viewProdutor(id){
 
     editProdutor(id);
   };
+  const mapaBtn=$('#abrirMapaProdutor');
+
+if(mapaBtn){
+
+  mapaBtn.onclick=()=>{
+
+    const lat=Number(p.latitude);
+    const lng=Number(p.longitude);
+
+    if(!lat || !lng){
+      toast('Localização não disponível');
+      return;
+    }
+
+    const url=
+      `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+
+    window.location.href=url;
+  };
+}
 
 
   $('#criarAcessoProdutor').onclick=
@@ -3789,6 +3826,30 @@ function openNovoProdutor(){
           name="localidade"
           placeholder="Ex.: Novo Remanso">
       </div>
+      <input
+  type="hidden"
+  name="latitude"
+  id="novoProdLatitude">
+
+<input
+  type="hidden"
+  name="longitude"
+  id="novoProdLongitude">
+
+<button
+  type="button"
+  class="btn btn-block"
+  id="capturarLocalizacaoProdutor"
+  style="margin-bottom:8px;">
+  📍 USAR LOCALIZAÇÃO ATUAL
+</button>
+
+<div
+  id="statusLocalizacaoProdutor"
+  class="meta"
+  style="margin-bottom:16px;">
+  Nenhuma localização registrada
+</div>
 
       <div class="field">
         <label>Observações</label>
@@ -3800,21 +3861,113 @@ function openNovoProdutor(){
     submitSimple('produtores')
   );
 
-  setTimeout(()=>{
+ setTimeout(()=>{
 
-    const btn=
-      document.querySelector(
-        '#modalForm button[type="submit"]'
+  const btn=
+    document.querySelector(
+      '#modalForm button[type="submit"]'
+    );
+
+  if(btn){
+    btn.textContent=
+      '👨‍🌾 CADASTRAR PRODUTOR';
+  }
+
+
+  const gpsBtn=
+    $('#capturarLocalizacaoProdutor');
+
+  const statusGps=
+    $('#statusLocalizacaoProdutor');
+
+  const latitude=
+    $('#novoProdLatitude');
+
+  const longitude=
+    $('#novoProdLongitude');
+
+
+  if(gpsBtn){
+
+    gpsBtn.onclick=()=>{
+
+      if(!navigator.geolocation){
+
+        toast(
+          'GPS não disponível neste aparelho'
+        );
+
+        return;
+      }
+
+
+      gpsBtn.disabled=true;
+      gpsBtn.textContent=
+        '📍 Localizando...';
+
+      statusGps.textContent=
+        'Buscando sua localização...';
+
+
+      navigator.geolocation.getCurrentPosition(
+
+        pos=>{
+
+          const lat=
+            pos.coords.latitude;
+
+          const lng=
+            pos.coords.longitude;
+
+
+          latitude.value=lat;
+          longitude.value=lng;
+
+
+          statusGps.innerHTML=
+            `✅ Localização registrada<br>`+
+            `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+
+          gpsBtn.textContent=
+            '✅ LOCALIZAÇÃO CAPTURADA';
+
+          gpsBtn.disabled=false;
+
+        },
+
+        err=>{
+
+          console.error(
+            'Erro GPS:',
+            err
+          );
+
+          statusGps.textContent=
+            'Não foi possível obter a localização';
+
+          gpsBtn.textContent=
+            '📍 TENTAR NOVAMENTE';
+
+          gpsBtn.disabled=false;
+
+          toast(
+            'Não foi possível acessar o GPS'
+          );
+        },
+
+        {
+          enableHighAccuracy:true,
+          timeout:15000,
+          maximumAge:0
+        }
       );
 
-    if(btn){
-      btn.textContent=
-        '👨‍🌾 CADASTRAR PRODUTOR';
-    }
+    };
+  }
 
-  },0);
-}
-   
+},0); 
+  
 async function salvarNovoProdutorComAcesso(event){
 
   event.preventDefault();
@@ -4040,7 +4193,19 @@ function openForm(type,sid){
  if(type==='colheita')return openColheita(sid);
  if(type==='colheita')return modal('Registrar colheita',`<input type="hidden" name="safra_id" value="${sid}"><div class="row2"><div class="field"><label>Data</label><input name="data_colheita" type="date" value="${new Date().toISOString().slice(0,10)}" required></div><div class="field"><label>Peso (kg)</label><input name="peso_kg" type="number" step="0.001" required></div></div><div class="row2"><div class="field"><label>Quantidade de frutos</label><input name="quantidade_frutos" type="number"></div><div class="field"><label>Preço/kg (R$)</label><input name="preco_kg" type="number" step="0.01"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('colheitas'));
 }
-function formObj(form){const o={};for(const [k,v] of new FormData(form)){if(v!=='')o[k]=v}['area_total_ha','area_ha','espacamento_linhas_m','espacamento_plantas_m','dose','peso_kg','preco_kg','numero_plantas','quantidade_frutos'].forEach(k=>{if(o[k]!==undefined)o[k]=Number(o[k])});return o}
+function formObj(form){const o={};for(const [k,v] of new FormData(form)){if(v!=='')o[k]=v}[
+  'area_total_ha',
+  'area_ha',
+  'espacamento_linhas_m',
+  'espacamento_plantas_m',
+  'dose',
+  'peso_kg',
+  'preco_kg',
+  'numero_plantas',
+  'quantidade_frutos',
+  'latitude',
+  'longitude'
+].forEach(k=>{if(o[k]!==undefined)o[k]=Number(o[k])});return o}
 function submitSimple(table){return async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await insertRow(table,formObj(e.currentTarget));closeModal();await loadAll();toast('Salvo com sucesso')}catch(err){console.error(err);toast('Erro ao salvar. Confira os dados.')}finally{btn.disabled=false}}}
 function go(page){$$('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===page));scrollTo({top:0,behavior:'smooth'})}
 async function boot(){
