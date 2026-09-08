@@ -287,16 +287,20 @@ window.onLocalizacaoTG=
 function(ok,latitude,longitude,mensagem){
 
   const gpsBtn=
-    $('#capturarLocalizacaoProdutor');
+  $('#capturarLocalizacaoPropriedade') ||
+  $('#capturarLocalizacaoProdutor');
 
-  const statusGps=
-    $('#statusLocalizacaoProdutor');
+const statusGps=
+  $('#statusLocalizacaoPropriedade') ||
+  $('#statusLocalizacaoProdutor');
 
-  const campoLatitude=
-    $('#novoProdLatitude');
+const campoLatitude=
+  $('#novaPropLatitude') ||
+  $('#novoProdLatitude');
 
-  const campoLongitude=
-    $('#novoProdLongitude');
+const campoLongitude=
+  $('#novaPropLongitude') ||
+  $('#novoProdLongitude');
 
 
   if(ok){
@@ -4762,89 +4766,58 @@ if(type==='propriedade'){
 
     if(!gpsBtn)return;
 
+gpsBtn.onclick=()=>{
 
-    gpsBtn.onclick=()=>{
+  if(
+    !window.AndroidTG ||
+    typeof AndroidTG.capturarLocalizacao!=='function'
+  ){
 
-      if(!navigator.geolocation){
+    toast(
+      'GPS do aplicativo indisponível'
+    );
 
-        toast(
-          'GPS não disponível neste aparelho'
-        );
-
-        return;
-      }
-
-
-      gpsBtn.disabled=true;
-
-      gpsBtn.textContent=
-        '📍 Localizando...';
-
-      statusGps.textContent=
-        'Buscando sua localização...';
+    return;
+  }
 
 
-      navigator.geolocation.getCurrentPosition(
+  gpsBtn.disabled=true;
 
-        pos=>{
-
-          const lat=
-            pos.coords.latitude;
-
-          const lng=
-            pos.coords.longitude;
+  gpsBtn.textContent=
+    '📍 Localizando...';
 
 
-          latitude.value=lat;
-          longitude.value=lng;
+  if(statusGps){
+
+    statusGps.textContent=
+      'Buscando sua localização...';
+  }
 
 
-          statusGps.innerHTML=
-            `✅ Localização registrada<br>`+
-            `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+  try{
+
+    AndroidTG.capturarLocalizacao();
+
+  }catch(err){
+
+    console.error(
+      'Erro GPS:',
+      err
+    );
 
 
-          gpsBtn.textContent=
-            '✅ LOCALIZAÇÃO CAPTURADA';
+    gpsBtn.disabled=false;
 
-          gpsBtn.disabled=false;
-
-        },
+    gpsBtn.textContent=
+      '📍 TENTAR NOVAMENTE';
 
 
-        err=>{
-
-          console.error(
-            'Erro GPS propriedade:',
-            err
-          );
-
-
-          statusGps.textContent=
-            'Não foi possível obter a localização';
-
-
-          gpsBtn.textContent=
-            '📍 TENTAR NOVAMENTE';
-
-          gpsBtn.disabled=false;
-
-
-          toast(
-            'Não foi possível acessar o GPS'
-          );
-        },
-
-
-        {
-          enableHighAccuracy:true,
-          timeout:15000,
-          maximumAge:0
-        }
-
-      );
-    };
-
+    toast(
+      'Não foi possível acessar o GPS'
+    );
+  }
+};
+   
   },0);
 
 
