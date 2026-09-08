@@ -4,7 +4,11 @@ import android.webkit.JavascriptInterface;
 import org.json.JSONObject;
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.webkit.GeolocationPermissions;
+import android.content.Context;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Looper;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -95,48 +99,8 @@ root.requestApplyInsets();
         new WebAppInterface(),
         "AndroidTG"
 );
-        webView.setWebChromeClient(new WebChromeClient() {
-
-    @Override
-    public void onGeolocationPermissionsShowPrompt(
-            String origin,
-            GeolocationPermissions.Callback callback
-    ) {
-
-        if (
-            Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-            checkSelfPermission(
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED ||
-            checkSelfPermission(
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-
-            callback.invoke(
-                origin,
-                true,
-                false
-            );
-
-        } else {
-
-            requestPermissions(
-                new String[]{
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                },
-                1001
-            );
-
-            callback.invoke(
-                origin,
-                false,
-                false
-            );
-        }
-    }
-});
+        webView.setWebChromeClient(new WebChromeClient());
+       
         if (
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
     checkSelfPermission(
@@ -159,6 +123,165 @@ root.requestApplyInsets();
     }
 
     private class WebAppInterface {
+
+        @JavascriptInterface
+public void capturarLocalizacao() {
+
+    runOnUiThread(() -> {
+
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            checkSelfPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            requestPermissions(
+                new String[]{
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                },
+                1001
+            );
+
+            enviarLocalizacaoJS(
+                false,
+                0,
+                0,
+                "Autorize a localização e tente novamente"
+            );
+
+            return;
+        }
+
+        try {
+
+            LocationManager lm =
+                (LocationManager) getSystemService(
+                    Context.LOCATION_SERVICE
+                );
+
+            Location melhor = null;
+
+            if (
+                lm.isProviderEnabled(
+                    LocationManager.GPS_PROVIDER
+                )
+            ) {
+                melhor =
+                    lm.getLastKnownLocation(
+                        LocationManager.GPS_PROVIDER
+                    );
+            }
+
+            if (
+                melhor == null &&
+                lm.isProviderEnabled(
+                    LocationManager.NETWORK_PROVIDER
+                )
+            ) {
+                melhor =
+                    lm.getLastKnownLocation(
+                        LocationManager.NETWORK_PROVIDER
+                    );
+            }
+
+            if (melhor != null) {
+
+                enviarLocalizacaoJS(
+                    true,
+                    melhor.getLatitude(),
+                    melhor.getLongitude(),
+                    "Localização obtida"
+                );
+
+                return;
+            }
+
+            LocationListener listener =
+                new LocationListener() {
+
+                    @Override
+                    public void onLocationChanged(
+                        Location location
+                    ) {
+
+                        lm.removeUpdates(this);
+
+                        enviarLocalizacaoJS(
+                            true,
+                            location.getLatitude(),
+                            location.getLongitude(),
+                            "Localização obtida"
+                        );
+                    }
+
+                    @Override
+                    public void onProviderEnabled(
+                        String provider
+                    ) {}
+
+                    @Override
+                    public void onProviderDisabled(
+                        String provider
+                    ) {}
+
+                    @Override
+                    public void onStatusChanged(
+                        String provider,
+                        int status,
+                        Bundle extras
+                    ) {}
+                };
+
+            if (
+                lm.isProviderEnabled(
+                    LocationManager.GPS_PROVIDER
+                )
+            ) {
+
+                lm.requestSingleUpdate(
+                    LocationManager.GPS_PROVIDER,
+                    listener,
+                    Looper.getMainLooper()
+                );
+
+            } else if (
+                lm.isProviderEnabled(
+                    LocationManager.NETWORK_PROVIDER
+                )
+            ) {
+
+                lm.requestSingleUpdate(
+                    LocationManager.NETWORK_PROVIDER,
+                    listener,
+                    Looper.getMainLooper()
+                );
+
+            } else {
+
+                enviarLocalizacaoJS(
+                    false,
+                    0,
+                    0,
+                    "Ative a localização do aparelho"
+                );
+            }
+
+        } catch (Exception e) {
+
+            enviarLocalizacaoJS(
+                false,
+                0,
+                0,
+                e.getMessage()
+            );
+        }
+    });
+}
 
     @JavascriptInterface
     public void recuperarSenha(String email) {
@@ -275,6 +398,30 @@ root.requestApplyInsets();
 
         }).start();
     }
+}
+
+    private void enviarLocalizacaoJS(
+        boolean ok,
+        double latitude,
+        double longitude,
+        String mensagem
+) {
+
+    webView.post(() -> {
+
+        String js =
+            "window.onLocalizacaoTG(" +
+            ok + "," +
+            latitude + "," +
+            longitude + "," +
+            JSONObject.quote(mensagem) +
+            ");";
+
+        webView.evaluateJavascript(
+            js,
+            null
+        );
+    });
 }
 
     @Override
