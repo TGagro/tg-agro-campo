@@ -1732,479 +1732,248 @@ async function deleteRow(table,id){
  });
 }
 function viewProdutor(id){
-  const p=state.produtores.find(x=>String(x.id)===String(id));
-  if(!p)return;
 
-  const props=state.propriedades.filter(
-    x=>String(x.produtor_id)===String(id)
+  const p=state.produtores.find(
+    x=>String(x.id)===String(id)
   );
 
-  const talhoes=state.talhoes.filter(
-    t=>props.some(pr=>String(pr.id)===String(t.propriedade_id))
-  );
-
-  const safras=state.safras.filter(
-    s=>talhoes.some(t=>String(t.id)===String(s.talhao_id))
-  );
-const hoje=new Date().toISOString().slice(0,10);
-
-const safraIds=new Set(
-  safras.map(s=>String(s.id))
-);
-
-const adubacoesProd=state.adubacoes
-  .filter(a=>safraIds.has(String(a.safra_id)))
-  .sort((a,b)=>
-    (b.data_aplicacao||'')
-      .localeCompare(a.data_aplicacao||'')
-  );
-
-const aplicacoesProd=state.aplicacoes
-  .filter(a=>safraIds.has(String(a.safra_id)))
-  .sort((a,b)=>
-    (b.data_aplicacao||'')
-      .localeCompare(a.data_aplicacao||'')
-  );
-
-function itensAdubFicha(a){
-  try{
-    const j=JSON.parse(a.produto||'');
-
-    if(Array.isArray(j)){
-      return j.map(x=>({
-        produto:x.produto||'',
-        dose:x.dose??'',
-        unidade:x.unidade||x.unidade_dose||''
-      })).filter(x=>x.produto);
-    }
-  }catch(_){}
-
-  return a.produto?[{
-    produto:a.produto,
-    dose:a.dose??'',
-    unidade:a.unidade_dose||''
-  }]:[];
-}
-
-function itensAplicFicha(a){
-  try{
-    const j=JSON.parse(a.produto_comercial||'');
-
-    if(Array.isArray(j)){
-      return j.map(x=>({
-        categoria:x.categoria||'Produto',
-        produto:x.produto||'',
-        dose:x.dose??'',
-        unidade:x.unidade||x.unidade_dose||''
-      })).filter(x=>x.produto);
-    }
-  }catch(_){}
-
-  return a.produto_comercial?[{
-    categoria:a.finalidade||'Aplicação',
-    produto:a.produto_comercial,
-    dose:a.dose??'',
-    unidade:a.unidade_dose||''
-  }]:[];
-}
-
-function statusManejo(a){
-  return a.status||
-    ((a.data_aplicacao||'')>hoje
-      ?'programada'
-      :'realizada');
-}
-
-const proximasAdubacoes=adubacoesProd.filter(
-  a=>statusManejo(a)==='programada'
-);
-
-const proximasAplicacoes=aplicacoesProd.filter(
-  a=>statusManejo(a)==='programada'
-);
-
-const adubacoesRealizadas=adubacoesProd.filter(
-  a=>statusManejo(a)==='realizada'
-);
-
-const aplicacoesRealizadas=aplicacoesProd.filter(
-  a=>statusManejo(a)==='realizada'
-);
-
-  const w=$('#modalWrap');
-  w.className='modal-backdrop';
-
-  w.innerHTML=`
-  <div class="modal">
-
-    <div class="modal-head">
-      <h3>Ficha do produtor</h3>
-      <button class="close" id="closeModal">×</button>
-    </div>
-
-    <div class="card">
-      <h4>${esc(p.nome||'Produtor')}</h4>
-
-      <div class="meta">
-        ${esc(p.municipio||'')}
-        ${p.estado?' • '+esc(p.estado):''}
-      </div>
-
-      <div class="meta">${esc(p.telefone||'Sem telefone')}</div>
-
-      <div class="meta">
-        CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}
-      </div>
-
-      ${p.observacoes
-        ?`<div class="meta" style="margin-top:8px">
-            ${esc(p.observacoes)}
-          </div>`
-        :''
-      }
-    </div>
-
-    <div class="card">
-      <h4>Resumo</h4>
-      <div class="meta">Propriedades: ${props.length}</div>
-      <div class="meta">Talhões: ${talhoes.length}</div>
-      <div class="meta">Lavouras: ${safras.length}</div>
-    </div>
-
-    <h3>Propriedades e lavouras</h3>
-
-    ${
-      props.length
-      ?props.map(pr=>{
-
-        const ts=talhoes.filter(
-          t=>String(t.propriedade_id)===String(pr.id)
-        );
-
-        const ss=safras.filter(
-          s=>ts.some(t=>String(t.id)===String(s.talhao_id))
-        );
-
-        return `
-        <div class="card">
-
-          <h4>${esc(pr.nome||'Propriedade')}</h4>
-
-          <div class="meta">
-            ${esc(pr.municipio||'')}
-            ${pr.area_total_ha
-              ?' • '+Number(pr.area_total_ha).toLocaleString('pt-BR')+' ha'
-              :''
-            }
-          </div>
-
-          ${
-            ss.length
-            ?ss.map(s=>`
-              <div class="meta" style="margin-top:6px">
-                • ${esc(s.cultura||'Lavoura')}
-                ${s.variedade?' — '+esc(s.variedade):''}
-              </div>
-            `).join('')
-            :'<div class="meta">Nenhuma lavoura cadastrada.</div>'
-          }
-
-        </div>
-        `;
-      }).join('')
-      :'<div class="empty">Nenhuma propriedade cadastrada.</div>'
-    }
-    <h3>Protocolo de Adubação</h3>
-
-    ${
-      adubacoesProd.length
-      ?adubacoesProd.map(a=>{
-        const itens=itensAdubFicha(a);
-        const sf=safras.find(
-          s=>String(s.id)===String(a.safra_id)
-        );
-
-        return `
-          <div class="card">
-            <div class="card-row">
-              <div>
-                <h4>
-                  ${esc(
-                    a.tipo_adubacao||
-                    a.tipo||
-                    a.finalidade||
-                    'Adubação'
-                  )}
-                </h4>
-
-                ${
-                  sf
-                  ?`<div class="meta">
-                      ${esc(sf.cultura||'Lavoura')}
-                      ${sf.variedade?' — '+esc(sf.variedade):''}
-                    </div>`
-                  :''
-                }
-
-                ${itens.map(i=>`
-                  <div class="meta">
-                    • ${esc(i.produto)}
-                    — ${esc(i.dose||'-')} ${esc(i.unidade||'')}
-                  </div>
-                `).join('')}
-
-                <div class="meta">
-                  Data: ${dateBR(a.data_aplicacao)}
-                </div>
-              </div>
-
-              <span class="pill ${(a.data_aplicacao||'')>hoje?'gold':''}">
-                ${(a.data_aplicacao||'')>hoje?'Programada':'Realizada'}
-              </span>
-            </div>
-          </div>
-        `;
-      }).join('')
-      :'<div class="empty">Nenhuma adubação cadastrada.</div>'
-    }
-
-
-    <h3>Protocolo de Borrifação / Coquetéis</h3>
-
-    ${
-      aplicacoesProd.length
-      ?aplicacoesProd.map(a=>{
-        const itens=itensAplicFicha(a);
-
-        const sf=safras.find(
-          s=>String(s.id)===String(a.safra_id)
-        );
-
-        return `
-          <div class="card">
-            <div class="card-row">
-              <div>
-                <h4>
-                  ${itens.length>1
-                    ?'Coquetel'
-                    :esc(a.finalidade||'Aplicação')}
-                </h4>
-
-                ${
-                  sf
-                  ?`<div class="meta">
-                      ${esc(sf.cultura||'Lavoura')}
-                      ${sf.variedade?' — '+esc(sf.variedade):''}
-                    </div>`
-                  :''
-                }
-
-                ${itens.map(i=>`
-                  <div class="meta">
-                    • <strong>${esc(i.categoria)}:</strong>
-                    ${esc(i.produto)}
-                    — ${esc(i.dose||'-')} ${esc(i.unidade||'')}
-                  </div>
-                `).join('')}
-
-                ${
-                  a.alvo
-                  ?`<div class="meta">
-                      Alvo: ${esc(a.alvo)}
-                    </div>`
-                  :''
-                }
-
-                <div class="meta">
-                  Data: ${dateBR(a.data_aplicacao)}
-                </div>
-              </div>
-
-              <span class="pill ${(a.data_aplicacao||'')>hoje?'gold':''}">
-                ${(a.data_aplicacao||'')>hoje?'Programada':'Realizada'}
-              </span>
-            </div>
-          </div>
-        `;
-      }).join('')
-      :'<div class="empty">Nenhuma borrifação cadastrada.</div>'
-    }
-
-
-    <h3>Próximos manejos</h3>
-
-    ${
-      proximasAdubacoes.length || proximasAplicacoes.length
-      ?`
-        ${proximasAdubacoes.map(a=>`
-          <div class="card">
-            <h4>🌱 Adubação programada</h4>
-            <div class="meta">
-              ${esc(
-                a.tipo_adubacao||
-                a.tipo||
-                a.finalidade||
-                'Adubação'
-              )}
-            </div>
-            <div class="meta">
-              Data: ${dateBR(a.data_aplicacao)}
-            </div>
-            <button
-  type="button"
-  class="btn btn-primary btn-block concluir-ficha-adub"
-  data-id="${esc(a.id)}"
-  style="margin-top:10px;">
-  ✓ Atividade cumprida
-</button>
-          </div>
-        `).join('')}
-
-        ${proximasAplicacoes.map(a=>`
-          <div class="card">
-            <h4>💧 Borrifação programada</h4>
-            <div class="meta">
-              ${itensAplicFicha(a).length>1
-                ?'Coquetel'
-                :esc(a.finalidade||'Aplicação')}
-            </div>
-            <div class="meta">
-              Data: ${dateBR(a.data_aplicacao)}
-            </div>
-            <button
-  type="button"
-  class="btn btn-primary btn-block concluir-ficha-aplic"
-  data-id="${esc(a.id)}"
-  style="margin-top:10px;">
-  ✓ Atividade cumprida
-</button>
-          </div>
-        `).join('')}
-      `
-      :'<div class="empty">Nenhum manejo programado.</div>'
-    }
-
-
-    <h3>Histórico realizado</h3>
-
-    <div class="card">
-      <div class="meta">
-        Adubações realizadas: <strong>${adubacoesRealizadas.length}</strong>
-      </div>
-
-      <div class="meta">
-        Borrifações realizadas: <strong>${aplicacoesRealizadas.length}</strong>
-      </div>
-    </div>
-    <button
-  class="btn btn-primary btn-block"
-  type="button"
-  id="criarAcessoProdutor"
-  style="margin-bottom:10px;">
-  🔑 CRIAR ACESSO
-</button>
-
-<button
-  class="btn btn-primary btn-block"
-  type="button"
-  id="editarDadosProdutor">
-  EDITAR DADOS
-</button>
-
-  </div>`;
-
-  $('#closeModal').onclick=closeModal;
-
-  $('#editarDadosProdutor').onclick=()=>{
-    closeModal();
-    editProdutor(id);
-  };
-  $('#criarAcessoProdutor').onclick=async()=>{
-  const email=prompt('Digite o e-mail de acesso do produtor:');
-  if(!email)return;
-
-  const senha=prompt('Digite a senha inicial (mínimo 6 caracteres):');
-  if(!senha)return;
-
-  if(senha.length<6){
-    toast('A senha precisa ter pelo menos 6 caracteres');
+  if(!p){
+    toast('Produtor não encontrado');
     return;
   }
 
-  try{
-    toast('Criando acesso...');
+  const w=$('#modalWrap');
 
-    const res=await fetch(
-      SUPABASE_URL+'/functions/v1/super-endpoint',
-      {
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'apikey':SUPABASE_KEY,
-          'Authorization':'Bearer '+state.session.access_token
-        },
-        body:JSON.stringify({
-          produtor_id:id,
-          email:email.trim().toLowerCase(),
-          password:senha
-        })
+  w.className='modal-backdrop';
+
+  w.innerHTML=`
+    <div class="modal">
+
+      <div class="modal-head">
+        <h3>Ficha do produtor</h3>
+
+        <button
+          class="close"
+          id="closeModal">
+          ×
+        </button>
+      </div>
+
+
+      <div class="card">
+
+        <h2 style="margin-top:0;">
+          👨‍🌾 ${esc(p.nome||'Produtor')}
+        </h2>
+
+        <div
+          style="
+            display:grid;
+            gap:10px;
+            margin-top:16px;
+          ">
+
+          <div>
+            <div class="meta">
+              CPF/CNPJ
+            </div>
+
+            <strong>
+              ${esc(p.cpf_cnpj||'Não informado')}
+            </strong>
+          </div>
+
+
+          <div>
+            <div class="meta">
+              Telefone
+            </div>
+
+            <strong>
+              ${esc(p.telefone||'Não informado')}
+            </strong>
+          </div>
+
+
+          <div>
+            <div class="meta">
+              Município
+            </div>
+
+            <strong>
+              ${esc(p.municipio||'Não informado')}
+            </strong>
+          </div>
+
+
+          <div>
+            <div class="meta">
+              Estado
+            </div>
+
+            <strong>
+              ${esc(p.estado||'AM')}
+            </strong>
+          </div>
+
+        </div>
+
+
+        ${
+          p.observacoes
+          ?`
+            <div
+              style="
+                border-top:1px solid #ddd;
+                margin-top:16px;
+                padding-top:14px;
+              ">
+
+              <div class="meta">
+                Observações
+              </div>
+
+              <div>
+                ${esc(p.observacoes)}
+              </div>
+
+            </div>
+          `
+          :''
+        }
+
+      </div>
+
+
+      <div class="card">
+
+        <h3 style="margin-top:0;">
+          🔑 Acesso ao aplicativo
+        </h3>
+
+        <p class="meta">
+          Crie o acesso para o produtor entrar no TG Agro Campo.
+        </p>
+
+        <button
+          class="btn btn-primary btn-block"
+          type="button"
+          id="criarAcessoProdutor">
+          🔑 CRIAR ACESSO
+        </button>
+
+      </div>
+
+
+      <button
+        class="btn btn-primary btn-block"
+        type="button"
+        id="editarDadosProdutor">
+        ✏️ EDITAR DADOS
+      </button>
+
+    </div>
+  `;
+
+
+  $('#closeModal').onclick=
+    closeModal;
+
+
+  $('#editarDadosProdutor').onclick=()=>{
+
+    closeModal();
+
+    editProdutor(id);
+  };
+
+
+  $('#criarAcessoProdutor').onclick=
+    async()=>{
+
+      const email=prompt(
+        'Digite o e-mail de acesso do produtor:'
+      );
+
+      if(!email)return;
+
+
+      const senha=prompt(
+        'Digite a senha inicial (mínimo 6 caracteres):'
+      );
+
+      if(!senha)return;
+
+
+      if(senha.length<6){
+
+        toast(
+          'A senha precisa ter pelo menos 6 caracteres'
+        );
+
+        return;
       }
-    );
 
-    const dados=await res.json();
 
-    if(!res.ok){
-      throw new Error(dados.error||'Erro ao criar acesso');
-    }
+      try{
 
-    toast('✓ Acesso criado com sucesso');
-  }catch(err){
-    console.error(err);
-    toast(err.message||'Não foi possível criar o acesso');
-  }
-};
- document.querySelectorAll('.concluir-ficha-adub').forEach(btn=>{
-  btn.onclick=async()=>{
-    const adubId=btn.dataset.id;
+        toast('Criando acesso...');
 
-    if(!confirm('Marcar esta atividade como cumprida?'))return;
 
-    try{
-      await updateRow('adubacoes',adubId,{
-        status:'realizada',
-        data_realizacao:hoje
-      });
+        const res=await fetch(
+          SUPABASE_URL+
+          '/functions/v1/super-endpoint',
+          {
+            method:'POST',
 
-      await loadAll();
-      viewProdutor(id);
-      toast('✓ Atividade cumprida');
-    }catch(err){
-      console.error(err);
-      toast('Erro ao concluir atividade');
-    }
-  };
-});
- document.querySelectorAll('.concluir-ficha-aplic').forEach(btn=>{
-  btn.onclick=async()=>{
-    const aplicId=btn.dataset.id;
+            headers:{
+              'Content-Type':'application/json',
+              'apikey':SUPABASE_KEY,
+              'Authorization':
+                'Bearer '+
+                state.session.access_token
+            },
 
-    if(!confirm('Marcar esta borrifação como cumprida?'))return;
+            body:JSON.stringify({
+              produtor_id:id,
+              email:
+                email
+                  .trim()
+                  .toLowerCase(),
+              password:senha
+            })
+          }
+        );
 
-    try{
-      await updateRow('aplicacoes',aplicId,{
-        status:'realizada',
-        data_realizacao:hoje
-      });
 
-      await loadAll();
-      viewProdutor(id);
-      toast('✓ Atividade cumprida');
-    }catch(err){
-      console.error(err);
-      toast('Erro ao concluir borrifação');
-    }
-  };
-});
+        const dados=
+          await res.json();
+
+
+        if(!res.ok){
+
+          throw new Error(
+            dados.error||
+            'Erro ao criar acesso'
+          );
+        }
+
+
+        toast(
+          '✓ Acesso criado com sucesso'
+        );
+
+
+      }catch(err){
+
+        console.error(err);
+
+        toast(
+          err.message||
+          'Não foi possível criar o acesso'
+        );
+      }
+    };
 }
 function editProdutor(id){
  const p=state.produtores.find(x=>x.id===id);
@@ -3967,15 +3736,16 @@ function openNovoProdutor(){
   modal(
     'Novo produtor',
     `
-      <h3 style="margin-top:0;">👨‍🌾 Dados do produtor</h3>
+      <h3 style="margin-top:0;">
+        👨‍🌾 Dados do produtor
+      </h3>
 
       <div class="field">
         <label>Nome *</label>
         <input
           name="nome"
           required
-          placeholder="Nome do produtor"
-        >
+          placeholder="Nome do produtor">
       </div>
 
       <div class="row2">
@@ -3984,16 +3754,14 @@ function openNovoProdutor(){
           <label>Telefone</label>
           <input
             name="telefone"
-            placeholder="(92) 99999-9999"
-          >
+            placeholder="(92) 99999-9999">
         </div>
 
         <div class="field">
           <label>CPF/CNPJ</label>
           <input
             name="cpf_cnpj"
-            placeholder="CPF ou CNPJ"
-          >
+            placeholder="CPF ou CNPJ">
         </div>
 
       </div>
@@ -4003,68 +3771,37 @@ function openNovoProdutor(){
         <div class="field">
           <label>Município</label>
           <input
-            name="municipio"
-          >
+            name="municipio">
         </div>
 
         <div class="field">
           <label>Estado</label>
           <input
             name="estado"
-            value="AM"
-          >
+            value="AM">
         </div>
 
       </div>
 
       <div class="field">
+        <label>Localidade / Comunidade</label>
+        <input
+          name="localidade"
+          placeholder="Ex.: Novo Remanso">
+      </div>
+
+      <div class="field">
         <label>Observações</label>
-        <textarea name="observacoes"></textarea>
-      </div>
-
-      <hr style="
-        border:none;
-        border-top:1px solid #ddd;
-        margin:22px 0;
-      ">
-
-      <h3>🔑 Acesso ao aplicativo</h3>
-
-      <div class="field">
-        <label>E-mail *</label>
-        <input
-          name="email_acesso"
-          type="email"
-          required
-          placeholder="produtor@email.com"
-        >
-      </div>
-
-      <div class="field">
-        <label>Senha inicial *</label>
-        <input
-          name="senha_acesso"
-          type="password"
-          minlength="6"
-          required
-          placeholder="Mínimo 6 caracteres"
-        >
-      </div>
-
-      <div class="field">
-        <label>Confirmar senha *</label>
-        <input
-          name="confirmar_senha"
-          type="password"
-          minlength="6"
-          required
-        >
+        <textarea
+          name="observacoes">
+        </textarea>
       </div>
     `,
-    salvarNovoProdutorComAcesso
+    submitSimple('produtores')
   );
 
   setTimeout(()=>{
+
     const btn=
       document.querySelector(
         '#modalForm button[type="submit"]'
@@ -4074,8 +3811,10 @@ function openNovoProdutor(){
       btn.textContent=
         '👨‍🌾 CADASTRAR PRODUTOR';
     }
+
   },0);
 }
+   
 async function salvarNovoProdutorComAcesso(event){
 
   event.preventDefault();
