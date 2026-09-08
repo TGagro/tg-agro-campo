@@ -2865,21 +2865,52 @@ function renderProdutorLavoura(){
   }).join('');
 }
 function renderProdutorManejos(){
+
   const el=$('#produtorManejosContent');
   if(!el)return;
 
-  const hoje=new Date().toISOString().slice(0,10);
-  const safraIds=new Set(state.safras.map(s=>String(s.id)));
-  const manejos=[];
+  const hoje=hojeLocalISO();
+
+  function isoLocal(d){
+    return [
+      d.getFullYear(),
+      String(d.getMonth()+1).padStart(2,'0'),
+      String(d.getDate()).padStart(2,'0')
+    ].join('-');
+  }
+
+  const daqui7=new Date(hoje+'T12:00:00');
+  daqui7.setDate(daqui7.getDate()+7);
+
+  const limite7=isoLocal(daqui7);
+
+  const safraIds=new Set(
+    state.safras.map(s=>String(s.id))
+  );
+
+  const atividades=[];
+
+
+  // =============================
+  // PRODUTOS DA ADUBAÇÃO
+  // =============================
 
   function itensAdub(a){
+
     try{
+
       const j=JSON.parse(a.produto||'');
-      if(Array.isArray(j))return j.map(x=>({
-        produto:x.produto||'',
-        dose:x.dose??'',
-        unidade:x.unidade||x.unidade_dose||''
-      })).filter(x=>x.produto);
+
+      if(Array.isArray(j)){
+
+        return j.map(x=>({
+          produto:x.produto||'',
+          dose:x.dose??'',
+          unidade:x.unidade||x.unidade_dose||''
+        }))
+        .filter(x=>x.produto);
+      }
+
     }catch(_){}
 
     return a.produto?[{
@@ -2889,88 +2920,644 @@ function renderProdutorManejos(){
     }]:[];
   }
 
+
+  // =============================
+  // PRODUTOS DA BORRIFAÇÃO
+  // =============================
+
   function itensAplic(a){
+
     try{
-      const j=JSON.parse(a.produto_comercial||'');
-      if(Array.isArray(j))return j.map(x=>({
-        categoria:x.categoria||'',
-        produto:x.produto||'',
-        dose:x.dose??'',
-        unidade:x.unidade||x.unidade_dose||''
-      })).filter(x=>x.produto);
+
+      const j=JSON.parse(
+        a.produto_comercial||''
+      );
+
+      if(Array.isArray(j)){
+
+        return j.map(x=>({
+          categoria:x.categoria||'',
+          produto:x.produto||'',
+          dose:x.dose??'',
+          unidade:x.unidade||x.unidade_dose||''
+        }))
+        .filter(x=>x.produto);
+      }
+
     }catch(_){}
 
     return a.produto_comercial?[{
-      categoria:a.finalidade||'Aplicação',
+      categoria:a.finalidade||'Produto',
       produto:a.produto_comercial,
       dose:a.dose??'',
       unidade:a.unidade_dose||''
     }]:[];
   }
 
+
+  // =============================
+  // FORMA DA ADUBAÇÃO
+  // =============================
+
+  function formaAdubacao(a){
+
+    const tipo=normalizarTexto(
+      a.tipo||''
+    );
+
+    if(tipo.includes('foliar')){
+      return 'Foliar • pulverização';
+    }
+
+    if(tipo.includes('fertirrig')){
+      return 'Fertirrigação';
+    }
+
+    if(
+      tipo.includes('plantio') ||
+      tipo.includes('cobertura')
+    ){
+      return 'Via solo';
+    }
+
+    return a.tipo||'Adubação';
+  }
+
+
+  // =============================
+  // ADUBAÇÕES
+  // =============================
+
   state.adubacoes
     .filter(a=>
-  safraIds.has(String(a.safra_id)) &&
-  (a.data_aplicacao||'')>=hoje &&
-  !['realizada','realizado'].includes((a.status||'').toLowerCase())
-)
+      safraIds.has(
+        String(a.safra_id)
+      )
+    )
     .forEach(a=>{
-      manejos.push({
-    id:a.id,
-    origem:'adubacao',
-    tipo:'Adubação',
-    data:a.data_aplicacao,
-    itens:itensAdub(a)
-});
+
+      atividades.push({
+
+        ...a,
+
+        origem:'adubacao',
+
+        grupo:'Adubação',
+
+        icone:'🌱',
+
+        forma:
+          formaAdubacao(a),
+
+        itens:
+          itensAdub(a)
+
+      });
+
     });
+
+
+  // =============================
+  // BORRIFAÇÕES
+  // =============================
 
   state.aplicacoes
     .filter(a=>
-  safraIds.has(String(a.safra_id)) &&
-  (a.data_aplicacao||'')>=hoje &&
-  !['realizada','realizado'].includes((a.status||'').toLowerCase())
-)
+      safraIds.has(
+        String(a.safra_id)
+      )
+    )
     .forEach(a=>{
-      manejos.push({
-    id:a.id,
-    origem:'aplicacao',
-    tipo:'Borrifação',
-    data:a.data_aplicacao,
-    itens:itensAplic(a)
-});
+
+      const itens=
+        itensAplic(a);
+
+      const categorias=
+        itens
+          .map(i=>
+            normalizarTexto(
+              i.categoria||''
+            )
+          );
+
+      const nutricional=
+        categorias.some(c=>
+          c.includes('nutri') ||
+          c.includes('fertiliz') ||
+          c.includes('adub')
+        );
+
+      atividades.push({
+
+        ...a,
+
+        origem:'aplicacao',
+
+        grupo:'Borrifação',
+
+        icone:'💦',
+
+        forma:
+          nutricional
+            ?'Nutricional / adubação foliar'
+            :'Defensivos agrícolas',
+
+        itens
+
+      });
+
     });
 
-  manejos.sort((a,b)=>(a.data||'').localeCompare(b.data||''));
 
-  if(!manejos.length){
-    el.innerHTML='<div class="empty">Nenhum manejo programado.</div>';
-    return;
+  // =============================
+  // CLASSIFICAÇÃO POR DATA
+  // =============================
+
+  const atrasadas=[];
+  const deHoje=[];
+  const semana=[];
+  const proximas=[];
+  const realizadas=[];
+
+
+  atividades.forEach(a=>{
+
+    const status=
+      statusManejoTG(a);
+
+    const data=
+      a.data_aplicacao||'';
+
+
+    if(status==='realizado'){
+
+      realizadas.push(a);
+      return;
+    }
+
+
+    if(status==='atrasado'){
+
+      atrasadas.push(a);
+      return;
+    }
+
+
+    if(data===hoje){
+
+      deHoje.push(a);
+      return;
+    }
+
+
+    if(
+      data>hoje &&
+      data<=limite7
+    ){
+
+      semana.push(a);
+      return;
+    }
+
+
+    proximas.push(a);
+
+  });
+
+
+  atrasadas.sort(
+    (a,b)=>
+      (a.data_aplicacao||'')
+        .localeCompare(
+          b.data_aplicacao||''
+        )
+  );
+
+  deHoje.sort(
+    (a,b)=>
+      (a.data_aplicacao||'')
+        .localeCompare(
+          b.data_aplicacao||''
+        )
+  );
+
+  semana.sort(
+    (a,b)=>
+      (a.data_aplicacao||'')
+        .localeCompare(
+          b.data_aplicacao||''
+        )
+  );
+
+  proximas.sort(
+    (a,b)=>
+      (a.data_aplicacao||'')
+        .localeCompare(
+          b.data_aplicacao||''
+        )
+  );
+
+  realizadas.sort(
+    (a,b)=>
+      (
+        b.data_realizacao||
+        b.data_aplicacao||
+        ''
+      ).localeCompare(
+        a.data_realizacao||
+        a.data_aplicacao||
+        ''
+      )
+  );
+
+
+  // =============================
+  // CARTÃO DA ATIVIDADE
+  // =============================
+
+  function cardAtividade(a){
+
+    const ctx=
+      contextoSafra(
+        a.safra_id
+      );
+
+    const status=
+      statusManejoTG(a);
+
+    let textoStatus='Programada';
+    let classe='gold';
+
+
+    if(status==='hoje'){
+      textoStatus='Hoje';
+      classe='gold';
+    }
+
+    if(status==='atrasado'){
+      textoStatus='Atrasada';
+      classe='red';
+    }
+
+    if(status==='realizado'){
+      textoStatus='Realizada';
+      classe='';
+    }
+
+
+    return `
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <div style="min-width:0;">
+
+            <h4 style="margin-bottom:5px;">
+
+              ${a.icone}
+              ${esc(a.grupo)}
+
+            </h4>
+
+
+            <div
+              class="meta"
+              style="
+                font-weight:700;
+                margin-bottom:6px;
+              ">
+
+              ${esc(a.forma)}
+
+            </div>
+
+
+            <div class="meta">
+
+              🌾
+              ${esc(
+                ctx.safra?.cultura||
+                'Lavoura'
+              )}
+
+              ${
+                ctx.safra?.variedade
+                  ?' • '+
+                    esc(
+                      ctx.safra.variedade
+                    )
+                  :''
+              }
+
+            </div>
+
+
+            ${
+              ctx.propriedade?.nome
+                ?`
+                  <div class="meta">
+                    🏡
+                    ${esc(
+                      ctx.propriedade.nome
+                    )}
+
+                    ${
+                      ctx.talhao?.nome
+                        ?' • '+
+                          esc(
+                            ctx.talhao.nome
+                          )
+                        :''
+                    }
+                  </div>
+                `
+                :''
+            }
+
+
+            <div
+              style="
+                margin-top:10px;
+              ">
+
+              ${a.itens.map(i=>`
+
+                <div
+                  class="meta"
+                  style="
+                    margin-bottom:4px;
+                  ">
+
+                  ${
+                    i.categoria
+                      ?'<strong>'+
+                        esc(i.categoria)+
+                        ':</strong> '
+                      :''
+                  }
+
+                  ${esc(i.produto)}
+
+                  ${
+                    i.dose!==''
+                      ?' — '+
+                        esc(i.dose)+
+                        ' '+
+                        esc(i.unidade||'')
+                      :''
+                  }
+
+                </div>
+
+              `).join('')}
+
+            </div>
+
+
+            ${
+              a.alvo
+                ?`
+                  <div
+                    class="meta"
+                    style="margin-top:6px;">
+
+                    <strong>
+                      Alvo:
+                    </strong>
+
+                    ${esc(a.alvo)}
+
+                  </div>
+                `
+                :''
+            }
+
+
+            ${
+              a.observacoes
+                ?`
+                  <div
+                    class="meta"
+                    style="margin-top:6px;">
+
+                    ${esc(
+                      a.observacoes
+                    )}
+
+                  </div>
+                `
+                :''
+            }
+
+
+            <div
+              class="meta"
+              style="
+                margin-top:8px;
+                font-weight:700;
+              ">
+
+              📅
+              ${dateBR(
+                a.data_aplicacao
+              )}
+
+            </div>
+
+          </div>
+
+
+          <span
+            class="pill ${classe}"
+            style="
+              white-space:nowrap;
+            ">
+
+            ${textoStatus}
+
+          </span>
+
+        </div>
+
+
+        ${
+          status!=='realizado'
+            ?`
+
+              <button
+                class="btn btn-block"
+                type="button"
+                data-realizar-manejo
+                data-origem="${esc(
+                  a.origem
+                )}"
+                data-id="${esc(
+                  a.id
+                )}"
+                style="margin-top:12px;">
+
+                ✓ Marcar como realizada
+
+              </button>
+
+            `
+            :''
+        }
+
+      </div>
+
+    `;
   }
 
-  el.innerHTML=manejos.map(m=>`
-    <div class="card">
-      <div class="card-row">
-        <div>
-          <h4>${esc(m.tipo)}</h4>
-          <div class="meta">Data: ${dateBR(m.data)}</div>
 
-          ${m.itens.map(i=>`
-            <div class="meta">
-              ${i.categoria?'<strong>'+esc(i.categoria)+':</strong> ':''}
-              ${esc(i.produto)}
-              ${i.dose!==''?' — '+esc(i.dose)+' '+esc(i.unidade||''):''}
-            </div>
-          `).join('')}
-          <button class="btn-block" type="button"
-  data-realizar-manejo
-  data-origem="${esc(m.origem)}"
-  data-id="${esc(m.id)}">
-  ✓ Marcar como realizado
-</button>
-        </div>
+  // =============================
+  // BLOCO / SEÇÃO
+  // =============================
+
+  function secao(
+    titulo,
+    lista
+  ){
+
+    if(!lista.length){
+      return '';
+    }
+
+    return `
+
+      <div
+        class="section-head"
+        style="margin-top:22px;">
+
+        <h3>
+          ${titulo}
+        </h3>
+
       </div>
+
+      ${lista
+        .map(cardAtividade)
+        .join('')}
+
+    `;
+  }
+
+
+  // =============================
+  // RESUMO
+  // =============================
+
+  el.innerHTML=`
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+        margin-bottom:20px;
+      ">
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          Hoje
+        </div>
+
+        <h2 style="margin:5px 0;">
+          ${deHoje.length}
+        </h2>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          Próximos 7 dias
+        </div>
+
+        <h2 style="margin:5px 0;">
+          ${semana.length}
+        </h2>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          Atrasadas
+        </div>
+
+        <h2 style="margin:5px 0;">
+          ${atrasadas.length}
+        </h2>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          Realizadas
+        </div>
+
+        <h2 style="margin:5px 0;">
+          ${realizadas.length}
+        </h2>
+
+      </div>
+
     </div>
-  `).join('');
+
+
+    ${
+      !atividades.length
+        ?`
+          <div class="empty">
+            Nenhuma atividade cadastrada.
+          </div>
+        `
+        :''
+    }
+
+
+    ${secao(
+      '⚠️ Atrasadas',
+      atrasadas
+    )}
+
+    ${secao(
+      '📌 Para hoje',
+      deHoje
+    )}
+
+    ${secao(
+      '📅 Esta semana',
+      semana
+    )}
+
+    ${secao(
+      '🗓️ Próximas',
+      proximas
+    )}
+
+    ${secao(
+      '✅ Realizadas',
+      realizadas.slice(0,20)
+    )}
+
+  `;
+
 }
 async function realizarManejo(origem,id){
   const tabela=
