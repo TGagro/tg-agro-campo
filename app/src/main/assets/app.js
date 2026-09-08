@@ -661,7 +661,7 @@ function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduc
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
- renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
+ renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();renderAtividadesTG();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
 }
 // =====================================================
 // DADOS DO NOVO PAINEL INICIAL
@@ -6876,6 +6876,620 @@ async function salvarNovoProdutorComAcesso(event){
     }
 
   }
+
+}
+
+function renderAtividadesTG(){
+
+  const pendentesEl=
+    $('#atividadesPendentesLista');
+
+  const realizadasEl=
+    $('#atividadesRealizadasLista');
+
+
+  if(!pendentesEl || !realizadasEl){
+    return;
+  }
+
+
+  const hoje=
+    hojeLocalISO();
+
+
+  const d7=
+    new Date();
+
+  d7.setDate(
+    d7.getDate()+7
+  );
+
+
+  const limite7=[
+    d7.getFullYear(),
+    String(
+      d7.getMonth()+1
+    ).padStart(2,'0'),
+    String(
+      d7.getDate()
+    ).padStart(2,'0')
+  ].join('-');
+
+
+  // =====================================
+  // JUNTA ADUBAÇÃO + BORRIFAÇÃO
+  // =====================================
+
+  const atividades=[];
+
+
+  state.adubacoes.forEach(a=>{
+
+    atividades.push({
+      ...a,
+      origem:'adubacao',
+      nomeAtividade:'Adubação',
+      icone:'🌱'
+    });
+
+  });
+
+
+  state.aplicacoes.forEach(a=>{
+
+    atividades.push({
+      ...a,
+      origem:'aplicacao',
+      nomeAtividade:'Borrifação',
+      icone:'💦'
+    });
+
+  });
+
+
+  // =====================================
+  // SEPARA STATUS
+  // =====================================
+
+  const hojeLista=
+    atividades.filter(
+      a=>statusManejoTG(a)==='hoje'
+    );
+
+
+  const atrasadas=
+    atividades.filter(
+      a=>statusManejoTG(a)==='atrasado'
+    );
+
+
+  const semana=
+    atividades.filter(a=>
+
+      statusManejoTG(a)==='programado' &&
+
+      (a.data_aplicacao||'')>=hoje &&
+
+      (a.data_aplicacao||'')<=limite7
+    );
+
+
+  const realizadas=
+    atividades.filter(
+      a=>statusManejoTG(a)==='realizado'
+    );
+
+
+  const pendentes=
+    atividades.filter(
+      a=>statusManejoTG(a)!=='realizado'
+    );
+
+
+  // =====================================
+  // CONTADORES
+  // =====================================
+
+  const hojeTotal=
+    $('#atividadesHojeTotal');
+
+  const atrasadasTotal=
+    $('#atividadesAtrasadasTotal');
+
+  const semanaTotal=
+    $('#atividadesSemanaTotal');
+
+  const realizadasTotal=
+    $('#atividadesRealizadasTotal');
+
+
+  if(hojeTotal){
+    hojeTotal.textContent=
+      hojeLista.length;
+  }
+
+  if(atrasadasTotal){
+    atrasadasTotal.textContent=
+      atrasadas.length;
+  }
+
+  if(semanaTotal){
+    semanaTotal.textContent=
+      semana.length;
+  }
+
+  if(realizadasTotal){
+    realizadasTotal.textContent=
+      realizadas.length;
+  }
+
+
+  // =====================================
+  // PRODUTOS
+  // =====================================
+
+  function descricaoProdutos(a){
+
+    try{
+
+      const bruto=
+        a.origem==='adubacao'
+          ?a.produto
+          :a.produto_comercial;
+
+
+      const itens=
+        JSON.parse(bruto||'');
+
+
+      if(Array.isArray(itens)){
+
+        const nomes=
+          itens
+            .filter(i=>i.produto)
+            .map(i=>{
+
+              let txt=
+                i.produto;
+
+              if(i.dose){
+                txt+=
+                  ` — ${i.dose}`;
+              }
+
+              if(
+                i.unidade ||
+                i.unidade_dose
+              ){
+
+                txt+=
+                  ` ${
+                    i.unidade||
+                    i.unidade_dose
+                  }`;
+              }
+
+              return txt;
+
+            });
+
+
+        if(nomes.length){
+          return nomes.join(' + ');
+        }
+      }
+
+    }catch(_){}
+
+
+    if(a.origem==='adubacao'){
+
+      return (
+        a.produto ||
+        'Adubação'
+      );
+    }
+
+
+    return (
+      a.produto_comercial ||
+      a.finalidade ||
+      'Borrifação'
+    );
+  }
+
+
+  // =====================================
+  // CARD
+  // =====================================
+
+  function cardAtividade(a){
+
+    const ctx=
+      contextoSafra(
+        a.safra_id
+      );
+
+
+    const status=
+      statusManejoTG(a);
+
+
+    let textoStatus=
+      'Programada';
+
+    let classe=
+      'gold';
+
+
+    if(status==='hoje'){
+
+      textoStatus='Hoje';
+    }
+
+
+    if(status==='atrasado'){
+
+      textoStatus='Atrasada';
+      classe='red';
+    }
+
+
+    if(status==='realizado'){
+
+      textoStatus='Realizada';
+      classe='';
+    }
+
+
+    return `
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <div>
+
+            <h4>
+              ${a.icone}
+              ${esc(a.nomeAtividade)}
+            </h4>
+
+
+            <div class="meta">
+
+              👨‍🌾
+
+              <strong>
+                ${
+                  esc(
+                    ctx.produtor?.nome||
+                    'Produtor'
+                  )
+                }
+              </strong>
+
+            </div>
+
+
+            <div class="meta">
+
+              🌾
+              ${
+                esc(
+                  ctx.safra?.cultura||
+                  'Lavoura'
+                )
+              }
+
+              ${
+                ctx.safra?.variedade
+                  ?' • '+
+                    esc(
+                      ctx.safra.variedade
+                    )
+                  :''
+              }
+
+            </div>
+
+
+            <div class="meta">
+
+              🏡
+              ${
+                esc(
+                  ctx.propriedade?.nome||
+                  'Propriedade'
+                )
+              }
+
+            </div>
+
+
+            <div class="meta">
+
+              🌱
+              ${
+                esc(
+                  ctx.talhao?.nome||
+                  'Talhão'
+                )
+              }
+
+            </div>
+
+
+            <div
+              class="meta"
+              style="margin-top:7px;">
+
+              <strong>
+                ${
+                  esc(
+                    descricaoProdutos(a)
+                  )
+                }
+              </strong>
+
+            </div>
+
+
+            ${
+              a.alvo
+              ?`
+                <div class="meta">
+                  Alvo:
+                  ${esc(a.alvo)}
+                </div>
+              `
+              :''
+            }
+
+
+            <div
+              class="meta"
+              style="margin-top:5px;">
+
+              📅
+              ${dateBR(
+                a.data_aplicacao
+              )}
+
+            </div>
+
+          </div>
+
+
+          <span
+            class="pill ${classe}">
+
+            ${textoStatus}
+
+          </span>
+
+        </div>
+
+
+        <div
+          style="
+            display:flex;
+            gap:8px;
+            margin-top:12px;
+            flex-wrap:wrap;
+          ">
+
+
+          <button
+            type="button"
+            class="btn abrir-atividade"
+            data-origem="${a.origem}"
+            data-sid="${esc(a.safra_id)}">
+
+            ✏️ Abrir / editar
+
+          </button>
+
+
+          ${
+            status!=='realizado'
+            ?`
+
+              <button
+                type="button"
+                class="btn btn-gold realizar-atividade-central"
+                data-origem="${a.origem}"
+                data-id="${esc(a.id)}">
+
+                ✓ Realizada
+
+              </button>
+
+            `
+            :''
+          }
+
+        </div>
+
+      </div>
+
+    `;
+  }
+
+
+  // =====================================
+  // PENDENTES
+  // =====================================
+
+  const ordem={
+    atrasado:0,
+    hoje:1,
+    programado:2
+  };
+
+
+  const pendentesOrdenadas=
+    [...pendentes]
+      .sort((a,b)=>{
+
+        const sa=
+          statusManejoTG(a);
+
+        const sb=
+          statusManejoTG(b);
+
+
+        const oa=
+          ordem[sa]??9;
+
+        const ob=
+          ordem[sb]??9;
+
+
+        if(oa!==ob){
+          return oa-ob;
+        }
+
+
+        return (
+          a.data_aplicacao||''
+        ).localeCompare(
+          b.data_aplicacao||''
+        );
+
+      });
+
+
+  pendentesEl.innerHTML=
+
+    pendentesOrdenadas.length
+
+      ?pendentesOrdenadas
+        .map(cardAtividade)
+        .join('')
+
+      :`
+
+        <div class="empty">
+          Nenhuma atividade pendente.
+        </div>
+
+      `;
+
+
+  // =====================================
+  // REALIZADAS
+  // =====================================
+
+  const realizadasOrdenadas=
+    [...realizadas]
+      .sort((a,b)=>{
+
+        const da=
+          a.data_realizacao ||
+          a.data_aplicacao ||
+          '';
+
+        const db=
+          b.data_realizacao ||
+          b.data_aplicacao ||
+          '';
+
+        return db.localeCompare(da);
+
+      });
+
+
+  realizadasEl.innerHTML=
+
+    realizadasOrdenadas.length
+
+      ?realizadasOrdenadas
+        .slice(0,20)
+        .map(cardAtividade)
+        .join('')
+
+      :`
+
+        <div class="empty">
+          Nenhuma atividade realizada.
+        </div>
+
+      `;
+
+
+  // =====================================
+  // ABRIR / EDITAR
+  // =====================================
+
+  document
+    .querySelectorAll(
+      '.abrir-atividade'
+    )
+    .forEach(btn=>{
+
+      btn.onclick=e=>{
+
+        e.stopPropagation();
+
+
+        const origem=
+          btn.dataset.origem;
+
+        const sid=
+          btn.dataset.sid;
+
+
+        if(origem==='adubacao'){
+
+          openAdubacao(sid);
+
+        }else{
+
+          openAplicacao(sid);
+
+        }
+
+      };
+
+    });
+
+
+  // =====================================
+  // MARCAR COMO REALIZADA
+  // =====================================
+
+  document
+    .querySelectorAll(
+      '.realizar-atividade-central'
+    )
+    .forEach(btn=>{
+
+      btn.onclick=async e=>{
+
+        e.stopPropagation();
+
+
+        if(
+          !confirm(
+            'Marcar esta atividade como realizada?'
+          )
+        ){
+          return;
+        }
+
+
+        await realizarManejo(
+          btn.dataset.origem,
+          btn.dataset.id
+        );
+
+
+        await loadAll();
+
+      };
+
+    });
 
 }
 
