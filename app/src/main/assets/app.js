@@ -661,7 +661,7 @@ function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduc
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
- renderProdutores();renderPropriedades();renderTalhoes();renderSafras();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
+ renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
 }
 // =====================================================
 // DADOS DO NOVO PAINEL INICIAL
@@ -2291,6 +2291,334 @@ function renderDash(){
 }
 function renderProdutores(){const el=$('#produtoresList');el.innerHTML=state.produtores.length?state.produtores.map(p=>`<div class="card card-click" data-edit-produtor="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">${esc(p.municipio||'Município não informado')} • ${esc(p.estado||'')}</div><div class="meta">${esc(p.telefone||'Sem telefone')}</div><div class="meta">CPF/CNPJ: ${esc(p.cpf_cnpj||'Não informado')}</div></div><span class="pill">${state.propriedades.filter(x=>x.produtor_id===p.id).length} prop.</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum produtor cadastrado.</div>'}
 function renderPropriedades(){const el=$('#propriedadesList');el.innerHTML=state.propriedades.length?state.propriedades.map(p=>`<div class="card card-click" data-edit-propriedade="${p.id}"><div class="card-row"><div><h4>${esc(p.nome)}</h4><div class="meta">Produtor: ${esc(nameBy(state.produtores,p.produtor_id))}</div><div class="meta">${esc(p.municipio||'')} • ${Number(p.area_total_ha||0).toLocaleString('pt-BR')} ha</div><div class="meta">Protocolo: ${esc(p.protocolo||'automático')}</div></div><span class="pill gold">${state.talhoes.filter(t=>t.propriedade_id===p.id).length} talhões</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhuma propriedade cadastrada.</div>'}
+function renderCadastroCampo(){
+
+  const talhoesEl=
+    $('#cadastroTalhoesList');
+
+  const lavourasEl=
+    $('#cadastroLavourasList');
+
+
+  // =====================================
+  // TALHÕES
+  // =====================================
+
+  if(talhoesEl){
+
+    if(!state.talhoes.length){
+
+      talhoesEl.innerHTML=`
+        <div class="empty">
+          Nenhum talhão cadastrado.
+        </div>
+      `;
+
+    }else{
+
+      talhoesEl.innerHTML=
+        state.talhoes.map(t=>{
+
+          const propriedade=
+            state.propriedades.find(
+              p=>String(p.id)===
+                 String(t.propriedade_id)
+            );
+
+          const produtor=
+            propriedade
+              ?state.produtores.find(
+                p=>String(p.id)===
+                   String(propriedade.produtor_id)
+              )
+              :null;
+
+          const lavouras=
+            state.safras.filter(
+              s=>String(s.talhao_id)===
+                 String(t.id)
+            );
+
+          return `
+
+            <div
+              class="card card-click"
+              data-edit-talhao="${esc(t.id)}">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    🌱 ${esc(t.nome)}
+                  </h4>
+
+                  <div class="meta">
+                    🏡
+                    ${
+                      esc(
+                        propriedade?.nome||
+                        'Propriedade não informada'
+                      )
+                    }
+                  </div>
+
+                  <div class="meta">
+                    👨‍🌾
+                    ${
+                      esc(
+                        produtor?.nome||
+                        'Produtor não informado'
+                      )
+                    }
+                  </div>
+
+                  <div
+                    class="meta"
+                    style="margin-top:6px;">
+
+                    Área:
+                    <strong>
+                      ${
+                        Number(
+                          t.area_ha||0
+                        ).toLocaleString(
+                          'pt-BR'
+                        )
+                      } ha
+                    </strong>
+
+                  </div>
+
+                </div>
+
+
+                <span class="pill gold">
+
+                  ${lavouras.length}
+                  lavoura(s)
+
+                </span>
+
+              </div>
+
+
+              <div class="edit-hint">
+                Toque para abrir o talhão
+              </div>
+
+            </div>
+          `;
+
+        }).join('');
+    }
+  }
+
+
+  // =====================================
+  // LAVOURAS
+  // =====================================
+
+  if(lavourasEl){
+
+    if(!state.safras.length){
+
+      lavourasEl.innerHTML=`
+        <div class="empty">
+          Nenhuma lavoura cadastrada.
+        </div>
+      `;
+
+    }else{
+
+      lavourasEl.innerHTML=
+        state.safras.map(s=>{
+
+          const talhao=
+            state.talhoes.find(
+              t=>String(t.id)===
+                 String(s.talhao_id)
+            );
+
+          const propriedade=
+            talhao
+              ?state.propriedades.find(
+                p=>String(p.id)===
+                   String(talhao.propriedade_id)
+              )
+              :null;
+
+          const produtor=
+            propriedade
+              ?state.produtores.find(
+                p=>String(p.id)===
+                   String(propriedade.produtor_id)
+              )
+              :null;
+
+          const idade=
+            ageDays(
+              s.data_plantio
+            );
+
+          const kg=
+            prodTotal(
+              s.id
+            );
+
+          const prod=
+            produtividade(
+              s
+            );
+
+          const ativa=
+            String(
+              s.status||'ativa'
+            ).toLowerCase()!=='encerrada';
+
+
+          return `
+
+            <div
+              class="card card-click"
+              data-edit-safra="${esc(s.id)}">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    🌾 ${esc(
+                      s.cultura||
+                      'Lavoura'
+                    )}
+
+                    ${
+                      s.variedade
+                        ?' • '+esc(s.variedade)
+                        :''
+                    }
+                  </h4>
+
+
+                  <div class="meta">
+                    👨‍🌾
+                    ${
+                      esc(
+                        produtor?.nome||
+                        'Produtor não informado'
+                      )
+                    }
+                  </div>
+
+
+                  <div class="meta">
+                    🏡
+                    ${
+                      esc(
+                        propriedade?.nome||
+                        'Propriedade'
+                      )
+                    }
+                  </div>
+
+
+                  <div class="meta">
+                    🌱
+                    ${
+                      esc(
+                        talhao?.nome||
+                        'Talhão'
+                      )
+                    }
+                  </div>
+
+
+                  <div
+                    class="meta"
+                    style="margin-top:6px;">
+
+                    Plantio:
+                    ${
+                      dateBR(
+                        s.data_plantio
+                      )
+                    }
+
+                  </div>
+
+                </div>
+
+
+                <span
+                  class="pill ${
+                    ativa
+                      ?''
+                      :'red'
+                  }">
+
+                  ${
+                    ativa
+                      ?'Ativa'
+                      :'Encerrada'
+                  }
+
+                </span>
+
+              </div>
+
+
+              <div
+                class="kpi-line"
+                style="margin-top:12px;">
+
+                <span class="pill">
+
+                  ${
+                    idade===null
+                      ?'Idade —'
+                      :idade+' dias'
+                  }
+
+                </span>
+
+                <span class="pill gold">
+
+                  ${
+                    kg.toLocaleString(
+                      'pt-BR',
+                      {
+                        maximumFractionDigits:1
+                      }
+                    )
+                  } kg
+
+                </span>
+
+                <span class="pill">
+
+                  ${
+                    prod
+                      .toFixed(2)
+                      .replace('.',',')
+                  } t/ha
+
+                </span>
+
+              </div>
+
+
+              <div class="edit-hint">
+                Toque para abrir a lavoura
+              </div>
+
+            </div>
+          `;
+
+        }).join('');
+    }
+  }
+}
 function renderTalhoes(){const el=$('#talhoesList');el.innerHTML=state.talhoes.length?state.talhoes.map(t=>`<div class="card card-click" data-edit-talhao="${t.id}"><div class="card-row"><div><h4>${esc(t.nome)}</h4><div class="meta">${esc(nameBy(state.propriedades,t.propriedade_id))}</div><div class="meta">Área: ${Number(t.area_ha||0).toLocaleString('pt-BR')} ha</div></div><span class="pill">${state.safras.filter(s=>s.talhao_id===t.id).length} safra(s)</span></div><div class="edit-hint">Toque para abrir e editar</div></div>`).join(''):'<div class="empty">Nenhum talhão cadastrado.</div>'}
 function safraCard(s,compact=false){const t=talhaoOfSafra(s),p=t?state.propriedades.find(x=>x.id===t.propriedade_id):null,age=ageDays(s.data_plantio),kg=prodTotal(s.id),prod=produtividade(s);return `<div class="card"><div class="card-row card-click" data-edit-safra="${s.id}"><div><h4>${esc(s.cultura)} ${s.variedade?`• ${esc(s.variedade)}`:''}</h4><div class="meta">${esc(p?.nome||'')} • ${esc(t?.nome||'')}</div><div class="kpi-line"><span class="pill">${age===null?'idade —':age+' dias'}</span><span class="pill gold">${kg.toLocaleString('pt-BR')} kg</span><span class="pill">${prod.toFixed(2).replace('.',',')} t/ha</span></div><div class="edit-hint">Toque para abrir e editar</div></div><span class="pill ${s.status==='encerrada'?'red':''}">${esc(s.status||'ativa')}</span></div>${compact?'':`<div class="actions"><button class="mini-btn" data-action="adubacao" data-sid="${s.id}">+ Adubação</button><button class="mini-btn" data-action="aplicacao" data-sid="${s.id}">+ Aplicação</button><button class="mini-btn" data-action="colheita" data-sid="${s.id}">+ Colheita</button></div>`}</div>`}
 function renderSafras(){const el=$('#safrasList');el.innerHTML=state.safras.length?state.safras.map(s=>safraCard(s)).join(''):'<div class="empty">Nenhuma lavoura cadastrada.</div>'}
