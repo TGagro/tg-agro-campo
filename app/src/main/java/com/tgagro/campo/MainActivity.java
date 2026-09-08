@@ -9,7 +9,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Looper;
-
+import android.content.Intent;
+import android.net.Uri;
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -123,6 +124,7 @@ root.requestApplyInsets();
     }
 
     private class WebAppInterface {
+        
 
         @JavascriptInterface
 public void capturarLocalizacao() {
@@ -279,6 +281,56 @@ public void capturarLocalizacao() {
                 0,
                 e.getMessage()
             );
+        }
+    });
+}
+        @JavascriptInterface
+public void abrirMapa(double latitude, double longitude) {
+
+    runOnUiThread(() -> {
+
+        try {
+
+            Uri uri = Uri.parse(
+                "geo:" +
+                latitude + "," + longitude +
+                "?q=" +
+                latitude + "," + longitude
+            );
+
+            Intent intent =
+                new Intent(
+                    Intent.ACTION_VIEW,
+                    uri
+                );
+
+            startActivity(intent);
+
+        } catch (Exception e) {
+
+            try {
+
+                Uri uriWeb = Uri.parse(
+                    "https://www.google.com/maps/search/?api=1&query=" +
+                    latitude + "," + longitude
+                );
+
+                Intent navegador =
+                    new Intent(
+                        Intent.ACTION_VIEW,
+                        uriWeb
+                    );
+
+                startActivity(navegador);
+
+            } catch (Exception ex) {
+
+                Toast.makeText(
+                    MainActivity.this,
+                    "Não foi possível abrir o mapa",
+                    Toast.LENGTH_SHORT
+                ).show();
+            }
         }
     });
 }
