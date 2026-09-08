@@ -4635,7 +4635,221 @@ async function salvarNovoProdutorComAcesso(event){
 }
 function openForm(type,sid){
  if(type==='produtor')return openNovoProdutor();
- if(type==='propriedade')return modal('Nova propriedade',`<div class="field"><label>Produtor</label><select name="produtor_id" required><option value="">Selecione</option>${opts(state.produtores)}</select></div><div class="field"><label>Nome da propriedade</label><input name="nome" required></div><div class="row2"><div class="field"><label>Município</label><input name="municipio"></div><div class="field"><label>Área total (ha)</label><input name="area_total_ha" type="number" step="0.01"></div></div><div class="field"><label>Comunidade</label><input name="comunidade"></div>`,submitSimple('propriedades'));
+if(type==='propriedade'){
+
+  modal(
+    'Nova propriedade',
+    `
+      <div class="field">
+        <label>Produtor *</label>
+
+        <select
+          name="produtor_id"
+          required>
+
+          <option value="">
+            Selecione
+          </option>
+
+          ${opts(state.produtores)}
+
+        </select>
+      </div>
+
+
+      <div class="field">
+        <label>Nome da propriedade *</label>
+
+        <input
+          name="nome"
+          required
+          placeholder="Ex.: Sítio Boa Esperança">
+      </div>
+
+
+      <div class="row2">
+
+        <div class="field">
+          <label>Município</label>
+
+          <input
+            name="municipio"
+            placeholder="Ex.: Itacoatiara">
+        </div>
+
+
+        <div class="field">
+          <label>Estado</label>
+
+          <input
+            name="estado"
+            value="AM">
+        </div>
+
+      </div>
+
+
+      <div class="field">
+        <label>Comunidade / Localidade</label>
+
+        <input
+          name="comunidade"
+          placeholder="Ex.: Novo Remanso">
+      </div>
+
+
+      <div class="field">
+        <label>Área total (ha)</label>
+
+        <input
+          name="area_total_ha"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Ex.: 2">
+      </div>
+
+
+      <input
+        type="hidden"
+        name="latitude"
+        id="novaPropLatitude">
+
+      <input
+        type="hidden"
+        name="longitude"
+        id="novaPropLongitude">
+
+
+      <button
+        type="button"
+        class="btn btn-block"
+        id="capturarLocalizacaoPropriedade"
+        style="margin-bottom:8px;">
+
+        📍 USAR LOCALIZAÇÃO ATUAL
+
+      </button>
+
+
+      <div
+        id="statusLocalizacaoPropriedade"
+        class="meta"
+        style="margin-bottom:16px;">
+
+        Nenhuma localização registrada
+
+      </div>
+    `,
+    submitSimple('propriedades')
+  );
+
+
+  setTimeout(()=>{
+
+    const gpsBtn=
+      $('#capturarLocalizacaoPropriedade');
+
+    const statusGps=
+      $('#statusLocalizacaoPropriedade');
+
+    const latitude=
+      $('#novaPropLatitude');
+
+    const longitude=
+      $('#novaPropLongitude');
+
+
+    if(!gpsBtn)return;
+
+
+    gpsBtn.onclick=()=>{
+
+      if(!navigator.geolocation){
+
+        toast(
+          'GPS não disponível neste aparelho'
+        );
+
+        return;
+      }
+
+
+      gpsBtn.disabled=true;
+
+      gpsBtn.textContent=
+        '📍 Localizando...';
+
+      statusGps.textContent=
+        'Buscando sua localização...';
+
+
+      navigator.geolocation.getCurrentPosition(
+
+        pos=>{
+
+          const lat=
+            pos.coords.latitude;
+
+          const lng=
+            pos.coords.longitude;
+
+
+          latitude.value=lat;
+          longitude.value=lng;
+
+
+          statusGps.innerHTML=
+            `✅ Localização registrada<br>`+
+            `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+
+
+          gpsBtn.textContent=
+            '✅ LOCALIZAÇÃO CAPTURADA';
+
+          gpsBtn.disabled=false;
+
+        },
+
+
+        err=>{
+
+          console.error(
+            'Erro GPS propriedade:',
+            err
+          );
+
+
+          statusGps.textContent=
+            'Não foi possível obter a localização';
+
+
+          gpsBtn.textContent=
+            '📍 TENTAR NOVAMENTE';
+
+          gpsBtn.disabled=false;
+
+
+          toast(
+            'Não foi possível acessar o GPS'
+          );
+        },
+
+
+        {
+          enableHighAccuracy:true,
+          timeout:15000,
+          maximumAge:0
+        }
+
+      );
+    };
+
+  },0);
+
+
+  return;
+}
  if(type==='talhao')return modal('Novo talhão',`<div class="field"><label>Propriedade</label><select name="propriedade_id" required><option value="">Selecione</option>${opts(state.propriedades)}</select></div><div class="row2"><div class="field"><label>Nome</label><input name="nome" required placeholder="Talhão 01"></div><div class="field"><label>Área (ha)</label><input name="area_ha" type="number" step="0.01"></div></div><div class="field"><label>Observações</label><textarea name="observacoes"></textarea></div>`,submitSimple('talhoes'));
  if(type==='safra')return modal('Nova lavoura',`<div class="field"><label>Talhão</label><select name="talhao_id" required><option value="">Selecione</option>${state.talhoes.map(t=>`<option value="${t.id}">${esc(nameBy(state.propriedades,t.propriedade_id))} • ${esc(t.nome)}</option>`).join('')}</select></div><div class="row2"><div class="field"><label>Cultura</label><input name="cultura" required placeholder="Maracujá"></div><div class="field"><label>Variedade</label><input name="variedade"></div></div><div class="row2"><div class="field"><label>Data de plantio</label><input name="data_plantio" type="date"></div><div class="field"><label>Nº de plantas</label><input name="numero_plantas" type="number"></div></div><div class="row2"><div class="field"><label>Espaçamento linhas (m)</label><input name="espacamento_linhas_m" type="number" step="0.01"></div><div class="field"><label>Espaçamento plantas (m)</label><input name="espacamento_plantas_m" type="number" step="0.01"></div></div>`,submitSimple('safras'));
  if(type==='adubacao')return openAdubacao(sid);
