@@ -537,15 +537,162 @@
 
 <section id="page-produtor-ficha" class="page"><div class="page-title"><h2>Ficha técnica</h2><p>Seus dados, propriedade e informações técnicas.</p></div><div id="produtorFichaContent" class="list"></div></section>
 <section id="page-agenda" class="page">
+
   <div class="page-title">
-    <h2>Agenda</h2>
-    <p>Manejos e atividades dos produtores</p>
+    <div>
+      <h2>Atividades</h2>
+      <p>Programação técnica dos produtores</p>
+    </div>
   </div>
 
-  <div class="card">
-    <h3>📅 Agenda técnica</h3>
-    <p>Em breve vamos mostrar aqui Hoje, Semana, Mês, Atrasados e Realizados.</p>
+
+  <!-- =========================
+       NOVAS ATIVIDADES
+       ========================= -->
+
+  <div
+    style="
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-bottom:18px;
+    ">
+
+    <button
+      type="button"
+      class="btn btn-gold"
+      id="novaAtividadeAdubacao"
+      style="
+        min-height:78px;
+        font-size:14px;
+      ">
+      🌱<br>
+      + Adubação
+    </button>
+
+
+    <button
+      type="button"
+      class="btn btn-gold"
+      id="novaAtividadePulverizacao"
+      style="
+        min-height:78px;
+        font-size:14px;
+      ">
+      💦<br>
+      + Pulverização
+    </button>
+
   </div>
+
+
+  <!-- =========================
+       RESUMO
+       ========================= -->
+
+  <div
+    style="
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+      margin-bottom:22px;
+    ">
+
+    <div class="card" style="margin:0;">
+      <div class="meta">
+        Hoje
+      </div>
+
+      <h2
+        id="atividadesHojeTotal"
+        style="margin:5px 0;">
+        0
+      </h2>
+    </div>
+
+
+    <div class="card" style="margin:0;">
+      <div class="meta">
+        Atrasadas
+      </div>
+
+      <h2
+        id="atividadesAtrasadasTotal"
+        style="margin:5px 0;">
+        0
+      </h2>
+    </div>
+
+
+    <div class="card" style="margin:0;">
+      <div class="meta">
+        Próximos 7 dias
+      </div>
+
+      <h2
+        id="atividadesSemanaTotal"
+        style="margin:5px 0;">
+        0
+      </h2>
+    </div>
+
+
+    <div class="card" style="margin:0;">
+      <div class="meta">
+        Realizadas
+      </div>
+
+      <h2
+        id="atividadesRealizadasTotal"
+        style="margin:5px 0;">
+        0
+      </h2>
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       PENDENTES
+       ========================= -->
+
+  <div class="section-head">
+    <h3>📋 Pendentes</h3>
+  </div>
+
+  <div
+    id="atividadesPendentesLista"
+    class="list">
+
+    <div class="empty">
+      Nenhuma atividade pendente.
+    </div>
+
+  </div>
+
+
+  <!-- =========================
+       REALIZADAS
+       ========================= -->
+
+  <div
+    class="section-head"
+    style="margin-top:26px;">
+
+    <h3>✅ Realizadas</h3>
+
+  </div>
+
+  <div
+    id="atividadesRealizadasLista"
+    class="list">
+
+    <div class="empty">
+      Nenhuma atividade realizada.
+    </div>
+
+  </div>
+
 </section>
 
 
