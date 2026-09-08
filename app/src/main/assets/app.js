@@ -2546,6 +2546,393 @@ function editProdutor(id){
 
   },0);
 }
+
+function viewPropriedade(id){
+
+  const p=state.propriedades.find(
+    x=>String(x.id)===String(id)
+  );
+
+  if(!p){
+    toast('Propriedade não encontrada');
+    return;
+  }
+
+
+  const produtor=
+    state.produtores.find(
+      x=>String(x.id)===
+         String(p.produtor_id)
+    );
+
+
+  const talhoes=
+    state.talhoes.filter(
+      t=>String(t.propriedade_id)===
+         String(id)
+    );
+
+
+  const temLocalizacao=
+    p.latitude!==null &&
+    p.latitude!==undefined &&
+    p.longitude!==null &&
+    p.longitude!==undefined;
+
+
+  const w=$('#modalWrap');
+
+  w.className='modal-backdrop';
+
+
+  w.innerHTML=`
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <h3>
+          Ficha da propriedade
+        </h3>
+
+        <button
+          class="close"
+          id="closeModal">
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="card">
+
+        <h2 style="margin-top:0;">
+          🏡 ${esc(p.nome||'Propriedade')}
+        </h2>
+
+
+        <div
+          style="
+            display:grid;
+            gap:12px;
+            margin-top:18px;
+          ">
+
+
+          <div>
+
+            <div class="meta">
+              Produtor
+            </div>
+
+            <strong>
+              ${esc(
+                produtor?.nome||
+                'Não informado'
+              )}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <div class="meta">
+              Município
+            </div>
+
+            <strong>
+              ${esc(
+                p.municipio||
+                'Não informado'
+              )}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <div class="meta">
+              Estado
+            </div>
+
+            <strong>
+              ${esc(p.estado||'AM')}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <div class="meta">
+              Comunidade / Localidade
+            </div>
+
+            <strong>
+              ${esc(
+                p.comunidade||
+                'Não informado'
+              )}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <div class="meta">
+              Área total
+            </div>
+
+            <strong>
+              ${
+                Number(p.area_total_ha||0)
+                  .toLocaleString('pt-BR')
+              } ha
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <div class="meta">
+              Protocolo
+            </div>
+
+            <strong>
+              ${esc(
+                p.protocolo||
+                'Não informado'
+              )}
+            </strong>
+
+          </div>
+
+
+          <div>
+
+            <div class="meta">
+              Talhões cadastrados
+            </div>
+
+            <strong>
+              ${talhoes.length}
+            </strong>
+
+          </div>
+
+        </div>
+
+
+        ${
+          temLocalizacao
+          ?`
+
+            <button
+              type="button"
+              class="btn btn-block"
+              id="abrirMapaPropriedadeFicha"
+              style="margin-top:18px;">
+
+              🗺️ ABRIR NO MAPA
+
+            </button>
+
+
+            <div
+              class="meta"
+              style="
+                margin-top:8px;
+                text-align:center;
+              ">
+
+              📍 Localização registrada
+
+            </div>
+
+          `
+          :`
+
+            <div
+              class="meta"
+              style="
+                margin-top:18px;
+                text-align:center;
+              ">
+
+              📍 Localização não cadastrada
+
+            </div>
+
+          `
+        }
+
+      </div>
+
+
+      <button
+        class="btn btn-primary btn-block"
+        type="button"
+        id="editarDadosPropriedade">
+
+        ✏️ EDITAR DADOS
+
+      </button>
+
+
+      <button
+        class="btn btn-danger btn-block"
+        type="button"
+        id="excluirPropriedadeFicha"
+        style="margin-top:10px;">
+
+        🗑️ EXCLUIR PROPRIEDADE
+
+      </button>
+
+    </div>
+  `;
+
+
+  // FECHAR
+
+  $('#closeModal').onclick=
+    closeModal;
+
+
+  // EDITAR
+
+  $('#editarDadosPropriedade').onclick=()=>{
+
+    closeModal();
+
+    editPropriedade(id);
+  };
+
+
+  // MAPA
+
+  const mapaBtn=
+    $('#abrirMapaPropriedadeFicha');
+
+
+  if(mapaBtn){
+
+    mapaBtn.onclick=()=>{
+
+      const lat=Number(
+        p.latitude
+      );
+
+      const lng=Number(
+        p.longitude
+      );
+
+
+      if(!lat || !lng){
+
+        toast(
+          'Localização não disponível'
+        );
+
+        return;
+      }
+
+
+      if(
+        window.AndroidTG &&
+        typeof AndroidTG.abrirMapa==='function'
+      ){
+
+        AndroidTG.abrirMapa(
+          lat,
+          lng
+        );
+
+      }else{
+
+        toast(
+          'Não foi possível abrir o mapa'
+        );
+      }
+    };
+  }
+
+
+  // EXCLUIR
+
+  const excluirBtn=
+    $('#excluirPropriedadeFicha');
+
+
+  if(excluirBtn){
+
+    excluirBtn.onclick=async()=>{
+
+
+      if(talhoes.length){
+
+        toast(
+          'Exclua primeiro os talhões desta propriedade'
+        );
+
+        return;
+      }
+
+
+      if(
+        !confirm(
+          `Excluir definitivamente ${p.nome||'esta propriedade'}?`
+        )
+      )return;
+
+
+      try{
+
+        excluirBtn.disabled=true;
+
+        excluirBtn.textContent=
+          'Excluindo...';
+
+
+        await deleteRow(
+          'propriedades',
+          id
+        );
+
+
+        closeModal();
+
+        await loadAll();
+
+
+        toast(
+          'Propriedade excluída'
+        );
+
+
+      }catch(err){
+
+        console.error(err);
+
+
+        excluirBtn.disabled=false;
+
+        excluirBtn.textContent=
+          '🗑️ EXCLUIR PROPRIEDADE';
+
+
+        toast(
+          'Não foi possível excluir a propriedade'
+        );
+      }
+    };
+  }
+}
+
 function editPropriedade(id){
 
   const p=state.propriedades.find(
@@ -5384,7 +5771,13 @@ if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id);
  const o=e.target.closest('[data-open]');if(o)openForm(o.dataset.open);
  const a=e.target.closest('[data-action]');if(a)openForm(a.dataset.action,a.dataset.sid);
  const ep=e.target.closest('[data-edit-produtor]');if(ep)return viewProdutor(ep.dataset.editProdutor);
- const epr=e.target.closest('[data-edit-propriedade]');if(epr)return editPropriedade(epr.dataset.editPropriedade);
+ const epr=e.target.closest('[data-edit-propriedade]');
+
+if(epr){
+  return viewPropriedade(
+    epr.dataset.editPropriedade
+  );
+}
  const et=e.target.closest('[data-edit-talhao]');if(et)return editTalhao(et.dataset.editTalhao);
  const es=e.target.closest('[data-edit-safra]');if(es)return editSafra(es.dataset.editSafra);
 });
