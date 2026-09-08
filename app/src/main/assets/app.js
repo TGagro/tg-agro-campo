@@ -7579,6 +7579,8 @@ $('#logoutBtn').addEventListener('click',()=>{
 
   showLogin();
 });
+ 
+document.addEventListener('click',e=>{
   const novaAdub=
     e.target.closest(
       '#novaAtividadeAdubacao'
@@ -7601,7 +7603,6 @@ $('#logoutBtn').addEventListener('click',()=>{
       'aplicacao'
     );
   }
-document.addEventListener('click',e=>{
  const rm=e.target.closest('[data-realizar-manejo]');
 if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id); 
  const p=e.target.closest('[data-page]');if(p)go(p.dataset.page);
