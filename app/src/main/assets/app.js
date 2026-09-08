@@ -6878,6 +6878,339 @@ async function salvarNovoProdutorComAcesso(event){
   }
 
 }
+
+function abrirSeletorAtividadeTG(tipo){
+
+  const titulo=
+    tipo==='adubacao'
+      ?'🌱 Nova adubação'
+      :'💦 Nova pulverização';
+
+
+  modal(
+    titulo,
+    `
+
+      <p class="meta">
+        Escolha onde esta atividade será realizada.
+      </p>
+
+
+      <div class="field">
+
+        <label>Produtor *</label>
+
+        <select
+          id="atividadeProdutor"
+          required>
+
+          <option value="">
+            Selecione o produtor
+          </option>
+
+          ${state.produtores.map(p=>`
+            <option value="${esc(p.id)}">
+              ${esc(p.nome)}
+            </option>
+          `).join('')}
+
+        </select>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>Propriedade *</label>
+
+        <select
+          id="atividadePropriedade"
+          required
+          disabled>
+
+          <option value="">
+            Primeiro selecione o produtor
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>Talhão *</label>
+
+        <select
+          id="atividadeTalhao"
+          required
+          disabled>
+
+          <option value="">
+            Primeiro selecione a propriedade
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>Lavoura *</label>
+
+        <select
+          id="atividadeSafra"
+          required
+          disabled>
+
+          <option value="">
+            Primeiro selecione o talhão
+          </option>
+
+        </select>
+
+      </div>
+
+    `,
+
+    e=>{
+
+      e.preventDefault();
+
+      const safraId=
+        $('#atividadeSafra')?.value;
+
+      if(!safraId){
+
+        toast(
+          'Selecione a lavoura'
+        );
+
+        return;
+      }
+
+
+      closeModal();
+
+
+      setTimeout(()=>{
+
+        if(tipo==='adubacao'){
+
+          openAdubacao(
+            safraId
+          );
+
+        }else{
+
+          openAplicacao(
+            safraId
+          );
+
+        }
+
+      },80);
+
+    }
+  );
+
+
+  setTimeout(()=>{
+
+    const produtor=
+      $('#atividadeProdutor');
+
+    const propriedade=
+      $('#atividadePropriedade');
+
+    const talhao=
+      $('#atividadeTalhao');
+
+    const safra=
+      $('#atividadeSafra');
+
+
+    const salvar=
+      $('#modalForm button[type="submit"]');
+
+    if(salvar){
+
+      salvar.textContent=
+        'CONTINUAR';
+
+    }
+
+
+    if(
+      !produtor ||
+      !propriedade ||
+      !talhao ||
+      !safra
+    ){
+      return;
+    }
+
+
+    // =========================
+    // PRODUTOR → PROPRIEDADE
+    // =========================
+
+    produtor.onchange=()=>{
+
+      const pid=
+        produtor.value;
+
+
+      const lista=
+        state.propriedades.filter(
+          p=>
+            String(p.produtor_id)===
+            String(pid)
+        );
+
+
+      propriedade.innerHTML=`
+
+        <option value="">
+          Selecione a propriedade
+        </option>
+
+        ${lista.map(p=>`
+          <option value="${esc(p.id)}">
+            ${esc(p.nome)}
+          </option>
+        `).join('')}
+
+      `;
+
+
+      propriedade.disabled=
+        !pid;
+
+
+      talhao.innerHTML=`
+        <option value="">
+          Primeiro selecione a propriedade
+        </option>
+      `;
+
+      talhao.disabled=true;
+
+
+      safra.innerHTML=`
+        <option value="">
+          Primeiro selecione o talhão
+        </option>
+      `;
+
+      safra.disabled=true;
+
+    };
+
+
+    // =========================
+    // PROPRIEDADE → TALHÃO
+    // =========================
+
+    propriedade.onchange=()=>{
+
+      const propriedadeId=
+        propriedade.value;
+
+
+      const lista=
+        state.talhoes.filter(
+          t=>
+            String(t.propriedade_id)===
+            String(propriedadeId)
+        );
+
+
+      talhao.innerHTML=`
+
+        <option value="">
+          Selecione o talhão
+        </option>
+
+        ${lista.map(t=>`
+          <option value="${esc(t.id)}">
+            ${esc(t.nome)}
+          </option>
+        `).join('')}
+
+      `;
+
+
+      talhao.disabled=
+        !propriedadeId;
+
+
+      safra.innerHTML=`
+        <option value="">
+          Primeiro selecione o talhão
+        </option>
+      `;
+
+      safra.disabled=true;
+
+    };
+
+
+    // =========================
+    // TALHÃO → LAVOURA
+    // =========================
+
+    talhao.onchange=()=>{
+
+      const talhaoId=
+        talhao.value;
+
+
+      const lista=
+        state.safras.filter(
+          s=>
+            String(s.talhao_id)===
+            String(talhaoId)
+        );
+
+
+      safra.innerHTML=`
+
+        <option value="">
+          Selecione a lavoura
+        </option>
+
+        ${lista.map(s=>`
+
+          <option value="${esc(s.id)}">
+
+            ${esc(
+              s.cultura||
+              'Lavoura'
+            )}
+
+            ${
+              s.variedade
+                ?' • '+esc(s.variedade)
+                :''
+            }
+
+          </option>
+
+        `).join('')}
+
+      `;
+
+
+      safra.disabled=
+        !talhaoId;
+
+    };
+
+  },0);
+}
+
 function openForm(type,sid){
  if(type==='produtor')return openNovoProdutor();
 if(type==='propriedade'){
@@ -7246,6 +7579,28 @@ $('#logoutBtn').addEventListener('click',()=>{
 
   showLogin();
 });
+  const novaAdub=
+    e.target.closest(
+      '#novaAtividadeAdubacao'
+    );
+
+  if(novaAdub){
+    return abrirSeletorAtividadeTG(
+      'adubacao'
+    );
+  }
+
+
+  const novaPulv=
+    e.target.closest(
+      '#novaAtividadePulverizacao'
+    );
+
+  if(novaPulv){
+    return abrirSeletorAtividadeTG(
+      'aplicacao'
+    );
+  }
 document.addEventListener('click',e=>{
  const rm=e.target.closest('[data-realizar-manejo]');
 if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id); 
