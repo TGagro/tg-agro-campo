@@ -2547,17 +2547,388 @@ function editProdutor(id){
   },0);
 }
 function editPropriedade(id){
- const p=state.propriedades.find(x=>x.id===id);if(!p)return;
- modal('Editar propriedade',`
- <div class="field"><label>Produtor</label><select name="produtor_id" required><option value="">Selecione</option>${optsSelected(state.produtores,p.produtor_id)}</select></div>
- <div class="field"><label>Nome da propriedade</label><input name="nome" required value="${esc(p.nome||'')}"></div>
- <div class="row2"><div class="field"><label>Município</label><input name="municipio" value="${esc(p.municipio||'')}"></div><div class="field"><label>Área total (ha)</label><input name="area_total_ha" type="number" step="0.01" value="${p.area_total_ha??''}"></div></div>
- <div class="field"><label>Comunidade</label><input name="comunidade" value="${esc(p.comunidade||'')}"></div>
- <button class="btn btn-danger btn-block" type="button" id="deletePropriedade">EXCLUIR PROPRIEDADE</button>
- `,async e=>{e.preventDefault();const btn=e.submitter;if(btn)btn.disabled=true;try{await updateRow('propriedades',id,formObj(e.currentTarget));closeModal();await loadAll();toast('Propriedade atualizada')}catch(err){console.error(err);toast('Erro ao atualizar propriedade')}finally{if(btn)btn.disabled=false}});
- setTimeout(()=>{const del=$('#deletePropriedade');if(del)del.onclick=async()=>{if(state.talhoes.some(t=>t.propriedade_id===id)){toast('Exclua primeiro os talhões desta propriedade');return}if(!confirm('Excluir esta propriedade?'))return;try{await deleteRow('propriedades',id);closeModal();await loadAll();toast('Propriedade excluída')}catch(err){console.error(err);toast('Não foi possível excluir')}}},0);
-}
 
+  const p=state.propriedades.find(
+    x=>String(x.id)===String(id)
+  );
+
+  if(!p)return;
+
+
+  const temLocalizacao=
+    p.latitude!==null &&
+    p.latitude!==undefined &&
+    p.longitude!==null &&
+    p.longitude!==undefined;
+
+
+  modal(
+    'Editar propriedade',
+    `
+
+    <div class="field">
+      <label>Produtor</label>
+
+      <select
+        name="produtor_id"
+        required>
+
+        <option value="">
+          Selecione
+        </option>
+
+        ${optsSelected(
+          state.produtores,
+          p.produtor_id
+        )}
+
+      </select>
+    </div>
+
+
+    <div class="field">
+      <label>Nome da propriedade</label>
+
+      <input
+        name="nome"
+        required
+        value="${esc(p.nome||'')}">
+    </div>
+
+
+    <div class="row2">
+
+      <div class="field">
+        <label>Município</label>
+
+        <input
+          name="municipio"
+          value="${esc(p.municipio||'')}">
+      </div>
+
+
+      <div class="field">
+        <label>Estado</label>
+
+        <input
+          name="estado"
+          value="${esc(p.estado||'AM')}">
+      </div>
+
+    </div>
+
+
+    <div class="field">
+      <label>Comunidade / Localidade</label>
+
+      <input
+        name="comunidade"
+        value="${esc(p.comunidade||'')}">
+    </div>
+
+
+    <div class="field">
+      <label>Área total (ha)</label>
+
+      <input
+        name="area_total_ha"
+        type="number"
+        step="0.01"
+        min="0"
+        value="${p.area_total_ha??''}">
+    </div>
+
+
+    <input
+      type="hidden"
+      name="latitude"
+      id="novaPropLatitude"
+      value="${p.latitude??''}">
+
+    <input
+      type="hidden"
+      name="longitude"
+      id="novaPropLongitude"
+      value="${p.longitude??''}">
+
+
+    <button
+      type="button"
+      class="btn btn-block"
+      id="capturarLocalizacaoPropriedade"
+      style="margin-bottom:8px;">
+
+      📍 ATUALIZAR LOCALIZAÇÃO
+
+    </button>
+
+
+    <div
+      id="statusLocalizacaoPropriedade"
+      class="meta"
+      style="margin-bottom:14px;">
+
+      ${
+        temLocalizacao
+          ?`✅ Localização registrada<br>
+             ${Number(p.latitude).toFixed(6)},
+             ${Number(p.longitude).toFixed(6)}`
+          :'Nenhuma localização registrada'
+      }
+
+    </div>
+
+
+    ${
+      temLocalizacao
+      ?`
+        <button
+          type="button"
+          class="btn btn-block"
+          id="abrirMapaPropriedade"
+          style="margin-bottom:14px;">
+
+          🗺️ ABRIR NO MAPA
+
+        </button>
+      `
+      :''
+    }
+
+
+    <button
+      class="btn btn-danger btn-block"
+      type="button"
+      id="deletePropriedade">
+
+      EXCLUIR PROPRIEDADE
+
+    </button>
+
+    `,
+
+
+    async e=>{
+
+      e.preventDefault();
+
+      const btn=e.submitter;
+
+      if(btn)btn.disabled=true;
+
+      try{
+
+        await updateRow(
+          'propriedades',
+          id,
+          formObj(e.currentTarget)
+        );
+
+        closeModal();
+
+        await loadAll();
+
+        toast(
+          'Propriedade atualizada'
+        );
+
+      }catch(err){
+
+        console.error(err);
+
+        toast(
+          'Erro ao atualizar propriedade'
+        );
+
+      }finally{
+
+        if(btn)btn.disabled=false;
+      }
+    }
+  );
+
+
+  setTimeout(()=>{
+
+
+    // =========================
+    // GPS
+    // =========================
+
+    const gpsBtn=
+      $('#capturarLocalizacaoPropriedade');
+
+    const statusGps=
+      $('#statusLocalizacaoPropriedade');
+
+
+    if(gpsBtn){
+
+      gpsBtn.onclick=()=>{
+
+        if(
+          !window.AndroidTG ||
+          typeof AndroidTG.capturarLocalizacao!=='function'
+        ){
+
+          toast(
+            'GPS do aplicativo indisponível'
+          );
+
+          return;
+        }
+
+
+        gpsBtn.disabled=true;
+
+        gpsBtn.textContent=
+          '📍 Localizando...';
+
+
+        if(statusGps){
+
+          statusGps.textContent=
+            'Buscando sua localização...';
+        }
+
+
+        try{
+
+          AndroidTG.capturarLocalizacao();
+
+        }catch(err){
+
+          console.error(
+            'Erro GPS propriedade:',
+            err
+          );
+
+          gpsBtn.disabled=false;
+
+          gpsBtn.textContent=
+            '📍 TENTAR NOVAMENTE';
+
+          toast(
+            'Não foi possível acessar o GPS'
+          );
+        }
+      };
+    }
+
+
+    // =========================
+    // ABRIR NO MAPA
+    // =========================
+
+    const mapaBtn=
+      $('#abrirMapaPropriedade');
+
+
+    if(mapaBtn){
+
+      mapaBtn.onclick=()=>{
+
+        const lat=Number(
+          $('#novaPropLatitude')?.value
+        );
+
+        const lng=Number(
+          $('#novaPropLongitude')?.value
+        );
+
+
+        if(!lat || !lng){
+
+          toast(
+            'Localização não disponível'
+          );
+
+          return;
+        }
+
+
+        if(
+          window.AndroidTG &&
+          typeof AndroidTG.abrirMapa==='function'
+        ){
+
+          AndroidTG.abrirMapa(
+            lat,
+            lng
+          );
+
+        }else{
+
+          toast(
+            'Não foi possível abrir o mapa'
+          );
+        }
+      };
+    }
+
+
+    // =========================
+    // EXCLUIR
+    // =========================
+
+    const del=
+      $('#deletePropriedade');
+
+
+    if(del){
+
+      del.onclick=async()=>{
+
+        if(
+          state.talhoes.some(
+            t=>String(t.propriedade_id)===
+               String(id)
+          )
+        ){
+
+          toast(
+            'Exclua primeiro os talhões desta propriedade'
+          );
+
+          return;
+        }
+
+
+        if(
+          !confirm(
+            'Excluir esta propriedade?'
+          )
+        )return;
+
+
+        try{
+
+          await deleteRow(
+            'propriedades',
+            id
+          );
+
+          closeModal();
+
+          await loadAll();
+
+          toast(
+            'Propriedade excluída'
+          );
+
+        }catch(err){
+
+          console.error(err);
+
+          toast(
+            'Não foi possível excluir'
+          );
+        }
+      };
+    }
+
+  },0);
+}
 function editTalhao(id){
  const t=state.talhoes.find(x=>x.id===id);if(!t)return;
  modal('Editar talhão',`
