@@ -3293,6 +3293,549 @@ function montarRelatorioAtividadesTecnico(
   `;
 
 }
+function montarRelatorioFinanceiroTecnico(
+  produtorId='',
+  dataInicial='',
+  dataFinal=''
+){
+
+  const pagamentos=
+    state.pagamentos_produtores || [];
+
+  const produtores=
+    (state.produtores || [])
+      .filter(p=>
+        !produtorId ||
+        String(p.id)===
+        String(produtorId)
+      );
+
+
+  const dinheiro=valor=>
+    Number(valor||0)
+      .toLocaleString(
+        'pt-BR',
+        {
+          style:'currency',
+          currency:'BRL'
+        }
+      );
+
+
+  // ==================================
+  // PAGAMENTOS RECEBIDOS NO PERÍODO
+  // ==================================
+
+  const recebidos=
+    pagamentos
+      .filter(p=>{
+
+        if(
+          produtorId &&
+          String(p.produtor_id)!==
+          String(produtorId)
+        ){
+          return false;
+        }
+
+        if(
+          String(p.status||'')
+            .toLowerCase()!=='pago'
+        ){
+          return false;
+        }
+
+        const data=
+          p.data_pagamento || '';
+
+        if(!data){
+          return false;
+        }
+
+        if(
+          dataInicial &&
+          data<dataInicial
+        ){
+          return false;
+        }
+
+        if(
+          dataFinal &&
+          data>dataFinal
+        ){
+          return false;
+        }
+
+        return true;
+
+      })
+      .sort((a,b)=>
+        String(b.data_pagamento||'')
+          .localeCompare(
+            String(a.data_pagamento||'')
+          )
+      );
+
+
+  const totalRecebido=
+    recebidos.reduce(
+      (total,p)=>
+        total +
+        Number(p.valor||0),
+      0
+    );
+
+
+  // ==================================
+  // SITUAÇÃO FINANCEIRA ATUAL
+  // ==================================
+
+  const hoje=new Date();
+
+  hoje.setHours(
+    0,0,0,0
+  );
+
+  const mesAtual=
+    hoje.getMonth()+1;
+
+  const anoAtual=
+    hoje.getFullYear();
+
+
+  const limitePagamento=
+    new Date(
+      anoAtual,
+      mesAtual-1,
+      28
+    );
+
+  limitePagamento.setDate(
+    limitePagamento.getDate()+5
+  );
+
+  limitePagamento.setHours(
+    23,59,59,999
+  );
+
+
+  function valorMensalidade(id){
+
+    const historico=
+      pagamentos
+        .filter(p=>
+          String(p.produtor_id)===
+          String(id)
+        )
+        .sort((a,b)=>{
+
+          const ca=
+            Number(
+              a.competencia_ano||0
+            )*100+
+            Number(
+              a.competencia_mes||0
+            );
+
+          const cb=
+            Number(
+              b.competencia_ano||0
+            )*100+
+            Number(
+              b.competencia_mes||0
+            );
+
+          return cb-ca;
+
+        });
+
+    return Number(
+      historico[0]?.valor || 400
+    );
+
+  }
+
+
+  let totalReceber=0;
+  let totalAtraso=0;
+
+
+  const situacaoAtual=
+    produtores.map(produtor=>{
+
+      const pagamento=
+        pagamentos.find(p=>
+          String(p.produtor_id)===
+            String(produtor.id) &&
+          Number(p.competencia_mes)===
+            mesAtual &&
+          Number(p.competencia_ano)===
+            anoAtual &&
+          String(p.status||'')
+            .toLowerCase()==='pago'
+        );
+
+
+      const valor=
+        pagamento
+          ?Number(
+              pagamento.valor||0
+            )
+          :valorMensalidade(
+              produtor.id
+            );
+
+
+      let status='receber';
+
+
+      if(pagamento){
+
+        status='pago';
+
+      }else if(
+        hoje>limitePagamento
+      ){
+
+        status='atraso';
+
+        totalAtraso+=valor;
+
+      }else{
+
+        totalReceber+=valor;
+
+      }
+
+
+      return {
+        produtor,
+        pagamento,
+        valor,
+        status
+      };
+
+    });
+
+
+  // ==================================
+  // HISTÓRICO
+  // ==================================
+
+  const meses=[
+    '',
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro'
+  ];
+
+
+  return `
+
+    <h3>
+      💰 Resumo financeiro
+    </h3>
+
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+      ">
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          💵 Recebido no período
+        </div>
+
+        <h3>
+          ${dinheiro(totalRecebido)}
+        </h3>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          🟡 A receber
+        </div>
+
+        <h3>
+          ${dinheiro(totalReceber)}
+        </h3>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          🔴 Em atraso
+        </div>
+
+        <h3>
+          ${dinheiro(totalAtraso)}
+        </h3>
+
+      </div>
+
+
+      <div
+        class="card"
+        style="margin:0;">
+
+        <div class="meta">
+          ✅ Pagamentos no período
+        </div>
+
+        <h3>
+          ${recebidos.length}
+        </h3>
+
+      </div>
+
+    </div>
+
+
+    <h3 style="margin-top:24px;">
+      Situação atual
+    </h3>
+
+
+    ${
+      situacaoAtual.length
+        ?situacaoAtual.map(item=>{
+
+          let texto=
+            '🟡 A RECEBER';
+
+          let fundo=
+            '#fff7dc';
+
+
+          if(item.status==='pago'){
+
+            texto='✅ PAGO';
+            fundo='#eaf6ee';
+
+          }
+
+
+          if(item.status==='atraso'){
+
+            texto='🔴 EM ATRASO';
+            fundo='#fff0ef';
+
+          }
+
+
+          return `
+
+            <div class="card">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    👨‍🌾
+                    ${esc(
+                      item.produtor.nome ||
+                      'Produtor'
+                    )}
+                  </h4>
+
+                  <div class="meta">
+                    ${meses[mesAtual]}
+                    /
+                    ${anoAtual}
+                  </div>
+
+                  ${
+                    item.pagamento
+                      ?.data_pagamento
+                      ?`
+                        <div class="meta">
+                          Pago em:
+                          ${dateBR(
+                            item.pagamento
+                              .data_pagamento
+                          )}
+                        </div>
+                      `
+                      :`
+                        <div class="meta">
+                          Vencimento:
+                          28/${String(
+                            mesAtual
+                          ).padStart(2,'0')}
+                          /${anoAtual}
+                        </div>
+                      `
+                  }
+
+                </div>
+
+
+                <div
+                  style="
+                    text-align:right;
+                  ">
+
+                  <strong>
+                    ${dinheiro(
+                      item.valor
+                    )}
+                  </strong>
+
+                  <div
+                    style="
+                      margin-top:8px;
+                      padding:7px 10px;
+                      border-radius:20px;
+                      background:${fundo};
+                      font-size:11px;
+                      font-weight:800;
+                      white-space:nowrap;
+                    ">
+
+                    ${texto}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          `;
+
+        }).join('')
+        :`
+          <div class="empty">
+            Nenhum produtor encontrado.
+          </div>
+        `
+    }
+
+
+    <h3 style="margin-top:24px;">
+      💳 Pagamentos recebidos
+    </h3>
+
+
+    ${
+      recebidos.length
+        ?recebidos.map(p=>{
+
+          const produtor=
+            state.produtores.find(
+              x=>String(x.id)===
+                 String(p.produtor_id)
+            );
+
+
+          return `
+
+            <div class="card">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4>
+                    👨‍🌾
+                    ${esc(
+                      produtor?.nome ||
+                      'Produtor'
+                    )}
+                  </h4>
+
+                  <div class="meta">
+                    Competência:
+                    ${
+                      meses[
+                        Number(
+                          p.competencia_mes
+                        )
+                      ] || '-'
+                    }
+                    /
+                    ${esc(
+                      p.competencia_ano ||
+                      '-'
+                    )}
+                  </div>
+
+                  <div class="meta">
+                    Pago em:
+                    ${dateBR(
+                      p.data_pagamento
+                    )}
+                  </div>
+
+                  ${
+                    p.forma_pagamento
+                      ?`
+                        <div class="meta">
+                          Forma:
+                          ${esc(
+                            String(
+                              p.forma_pagamento
+                            ).toUpperCase()
+                          )}
+                        </div>
+                      `
+                      :''
+                  }
+
+                </div>
+
+
+                <strong>
+                  ${dinheiro(
+                    p.valor
+                  )}
+                </strong>
+
+              </div>
+
+            </div>
+
+          `;
+
+        }).join('')
+        :`
+          <div class="empty">
+            Nenhum pagamento recebido
+            no período selecionado.
+          </div>
+        `
+    }
+
+  `;
+
+}
 function abrirRelatorioTecnico(tipo){
 
   const nomes={
@@ -3489,6 +4032,18 @@ function abrirRelatorioTecnico(tipo){
 
   }
 
+   if(tipo==='financeiro'){
+
+  resultado.innerHTML=
+    montarRelatorioFinanceiroTecnico(
+      produtorId,
+      dataInicial,
+      dataFinal
+    );
+
+  return;
+
+}
 
   resultado.innerHTML=`
     <div class="empty">
