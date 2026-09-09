@@ -4582,6 +4582,148 @@ async function enviarContratoProdutor(produtorId, arquivo){
   }
 }
 
+async function abrirContratoProdutor(produtorId){
+
+  try{
+
+    toast('Abrindo contrato...');
+
+    const caminho =
+      encodeURIComponent(produtorId) +
+      '/contrato.pdf';
+
+    const res = await fetch(
+      SUPABASE_URL +
+      '/storage/v1/object/sign/Contratos/' +
+      caminho,
+      {
+        method:'POST',
+        headers:{
+          'apikey':SUPABASE_KEY,
+          'Authorization':'Bearer ' + state.session.access_token,
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          expiresIn:300
+        })
+      }
+    );
+
+    const dados = await res.json();
+
+    if(!res.ok){
+      throw new Error(
+        dados.message ||
+        dados.error ||
+        'Não foi possível abrir o contrato'
+      );
+    }
+
+    const signedUrl =
+      dados.signedURL ||
+      dados.signedUrl;
+
+    const url =
+      signedUrl.startsWith('http')
+        ? signedUrl
+        : SUPABASE_URL + '/storage/v1' + signedUrl;
+
+    if(
+      window.AndroidTG &&
+      typeof AndroidTG.abrirUrl === 'function'
+    ){
+      AndroidTG.abrirUrl(url);
+    }else{
+      window.location.href=url;
+    }
+
+  }catch(err){
+
+    console.error(err);
+
+    toast(
+      err.message ||
+      'Erro ao abrir contrato'
+    );
+  }
+}
+
+
+async function excluirContratoProdutor(produtorId){
+
+  if(
+    !confirm(
+      'Deseja realmente excluir o contrato deste produtor?'
+    )
+  ){
+    return;
+  }
+
+  try{
+
+    toast('Excluindo contrato...');
+
+    const caminho =
+      encodeURIComponent(produtorId) +
+      '/contrato.pdf';
+
+    const res = await fetch(
+      SUPABASE_URL +
+      '/storage/v1/object/Contratos/' +
+      caminho,
+      {
+        method:'DELETE',
+        headers:{
+          'apikey':SUPABASE_KEY,
+          'Authorization':'Bearer ' + state.session.access_token
+        }
+      }
+    );
+
+    if(!res.ok){
+
+      let mensagem='Erro ao excluir contrato';
+
+      try{
+        const dados=await res.json();
+        mensagem=
+          dados.message ||
+          dados.error ||
+          mensagem;
+      }catch(e){}
+
+      throw new Error(mensagem);
+    }
+
+    toast('✓ Contrato excluído');
+
+    const status=$('#contratoAdminStatus');
+    const ver=$('#verContratoAdmin');
+    const excluir=$('#excluirContratoAdmin');
+
+    if(status){
+      status.textContent='Nenhum contrato enviado.';
+    }
+
+    if(ver){
+      ver.style.display='none';
+    }
+
+    if(excluir){
+      excluir.style.display='none';
+    }
+
+  }catch(err){
+
+    console.error(err);
+
+    toast(
+      err.message ||
+      'Não foi possível excluir o contrato'
+    );
+  }
+}
+
 function viewProdutor(id){
 
   const p=state.produtores.find(
@@ -4850,6 +4992,29 @@ if(btnAdicionarContrato && inputContrato){
 
     }
 
+  };
+
+}
+
+  const btnVerContrato =
+  $('#verContratoAdmin');
+
+if(btnVerContrato){
+
+  btnVerContrato.onclick=()=>{
+    abrirContratoProdutor(id);
+  };
+
+}
+
+
+const btnExcluirContrato =
+  $('#excluirContratoAdmin');
+
+if(btnExcluirContrato){
+
+  btnExcluirContrato.onclick=()=>{
+    excluirContratoProdutor(id);
   };
 
 }
