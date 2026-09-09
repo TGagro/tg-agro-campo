@@ -9446,24 +9446,6 @@ ${
 </div>
 </div>
 
-<div class="card">
-
-  <h3 style="margin-top:0;">
-    💰 Financeiro
-  </h3>
-
-  <p class="meta">
-    Registre as mensalidades pagas deste produtor.
-  </p>
-
-  <button
-    type="button"
-    class="btn btn-primary btn-block"
-    id="registrarPagamentoProdutor">
-    💰 REGISTRAR PAGAMENTO
-  </button>
-
-</div>
       <button
         class="btn btn-primary btn-block"
         type="button"
@@ -9482,16 +9464,6 @@ ${
     </div>
   `;
 verificarContratoProdutor(id);
-  const btnRegistrarPagamento =
-  $('#registrarPagamentoProdutor');
-
-if(btnRegistrarPagamento){
-
-  btnRegistrarPagamento.onclick=()=>{
-    abrirPagamentoProdutor(id);
-  };
-
-}
 
   $('#closeModal').onclick=
     closeModal;
