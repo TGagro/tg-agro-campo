@@ -662,7 +662,7 @@ function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
  renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();renderAtividadesTG();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
-atualizarStatusFinanceiro();
+renderProdutorFinanceiro();atualizarStatusFinanceiro();
 }
 // =====================================================
 // DADOS DO NOVO PAINEL INICIAL
@@ -4301,6 +4301,194 @@ async function copiarPixTG(){
     }catch(err){
       toast('Não foi possível copiar a chave PIX.');
     }
+  }
+}
+async function renderProdutorFinanceiro(){
+
+  if(!isProdutor()) return;
+
+  const el = $('#produtorFinanceiroContent');
+  if(!el) return;
+
+  const produtorId =
+    state.perfilUsuario?.produtor_id;
+
+  if(!produtorId) return;
+
+  el.innerHTML = `
+    <div class="card">
+
+      <div class="meta">
+        💰 <strong>MENSALIDADE</strong>
+      </div>
+
+      <div class="card-row" style="margin-top:14px;">
+        <div>
+          <div class="meta">Vencimento</div>
+          <strong>Todo dia 28</strong>
+        </div>
+
+        <div style="text-align:right;">
+          <div class="meta">Prazo</div>
+          <strong>Até 5 dias após</strong>
+        </div>
+      </div>
+
+      <div
+        id="financeiroStatus"
+        style="
+          margin-top:16px;
+          padding:14px;
+          border-radius:14px;
+          background:#eef7f0;
+        ">
+        Carregando...
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="meta">
+        📲 <strong>PAGAMENTO VIA PIX</strong>
+      </div>
+
+      <h4 style="margin-bottom:4px;">
+        Banco Inter
+      </h4>
+
+      <div class="meta">
+        G. Correia Barros Filho
+      </div>
+
+      <div class="meta" style="margin-top:16px;">
+        Chave PIX • CNPJ
+      </div>
+
+      <h3 style="margin-top:4px;">
+        62.382.506/0001-60
+      </h3>
+
+      <button
+        type="button"
+        class="btn btn-primary btn-block"
+        id="copiarPixProdutor">
+        📋 COPIAR CHAVE PIX
+      </button>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="meta">
+        📄 <strong>CONTRATO</strong>
+      </div>
+
+      <div
+        id="contratoProdutorStatus"
+        class="meta"
+        style="margin-top:14px;">
+        Verificando contrato...
+      </div>
+
+      <button
+        type="button"
+        class="btn btn-primary btn-block"
+        id="verContratoProdutor"
+        style="display:none;margin-top:14px;">
+        📄 VER CONTRATO
+      </button>
+
+    </div>
+
+
+    <div style="margin-top:22px;">
+      <div class="meta">
+        🧾 <strong>HISTÓRICO DE PAGAMENTOS</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="empty">
+        Nenhum pagamento registrado ainda.
+      </div>
+    </div>
+  `;
+
+
+  atualizarStatusFinanceiro();
+
+
+  const btnPix = $('#copiarPixProdutor');
+
+  if(btnPix){
+    btnPix.onclick = copiarPixTG;
+  }
+
+
+  const statusContrato =
+    $('#contratoProdutorStatus');
+
+  const btnContrato =
+    $('#verContratoProdutor');
+
+
+  try{
+
+    const caminho =
+      encodeURIComponent(produtorId) +
+      '/contrato.pdf';
+
+    const res = await fetch(
+      SUPABASE_URL +
+      '/storage/v1/object/sign/Contratos/' +
+      caminho,
+      {
+        method:'POST',
+        headers:{
+          'apikey':SUPABASE_KEY,
+          'Authorization':
+            'Bearer ' +
+            state.session.access_token,
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          expiresIn:60
+        })
+      }
+    );
+
+
+    if(res.ok){
+
+      statusContrato.textContent =
+        '✅ Contrato disponível';
+
+      btnContrato.style.display='block';
+
+      btnContrato.onclick=()=>{
+        abrirContratoProdutor(produtorId);
+      };
+
+    }else{
+
+      statusContrato.textContent =
+        'Contrato ainda não disponibilizado.';
+
+      btnContrato.style.display='none';
+    }
+
+  }catch(err){
+
+    console.error(
+      'Erro ao verificar contrato do produtor:',
+      err
+    );
+
+    statusContrato.textContent =
+      'Contrato ainda não disponibilizado.';
   }
 }
   function atualizarStatusFinanceiro(){
