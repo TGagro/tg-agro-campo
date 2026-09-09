@@ -4281,7 +4281,86 @@ function opts(arr,value='id',label='nome'){return arr.map(x=>`<option value="${x
 function optsSelected(arr,selected,value='id',label='nome'){return arr.map(x=>`<option value="${x[value]}" ${String(x[value])===String(selected)?'selected':''}>${esc(x[label])}</option>`).join('')}
 function modal(title,body,onSubmit){const w=$('#modalWrap');w.className='modal-backdrop';w.innerHTML=`<div class="modal"><div class="modal-head"><h3>${title}</h3><button class="close" id="closeModal">×</button></div><form id="modalForm">${body}<button class="btn btn-primary btn-block" type="submit">SALVAR</button></form></div>`;$('#closeModal').onclick=closeModal;$('#modalForm').onsubmit=onSubmit}
 function closeModal(){$('#modalWrap').className='hidden';$('#modalWrap').innerHTML=''}
-async function updateRow(table,id,row){
+async function copiarPixTG(){
+  const pix = '62382506000160';
+
+  try{
+    await navigator.clipboard.writeText(pix);
+    toast('Chave PIX copiada!');
+  }catch(e){
+    try{
+      const campo = document.createElement('textarea');
+      campo.value = pix;
+      document.body.appendChild(campo);
+      campo.select();
+      document.execCommand('copy');
+      campo.remove();
+
+      toast('Chave PIX copiada!');
+    }catch(err){
+      toast('Não foi possível copiar a chave PIX.');
+    }
+  }
+}
+  function atualizarStatusFinanceiro(){
+  const el = document.getElementById('financeiroStatus');
+  if(!el) return;
+
+  const hoje = new Date();
+  hoje.setHours(0,0,0,0);
+
+  const ano = hoje.getFullYear();
+  const mes = hoje.getMonth();
+
+  const vencimento = new Date(ano, mes, 28);
+  vencimento.setHours(0,0,0,0);
+
+  const limite = new Date(vencimento);
+  limite.setDate(limite.getDate() + 5);
+
+  const dataBR = d =>
+    String(d.getDate()).padStart(2,'0') + '/' +
+    String(d.getMonth() + 1).padStart(2,'0') + '/' +
+    d.getFullYear();
+
+  if(hoje < vencimento){
+
+    el.style.background = '#eef5ef';
+    el.style.color = '#28643d';
+
+    el.innerHTML = `
+      🟢 Em dia
+      <div style="font-size:12px;font-weight:500;margin-top:3px;">
+        Próximo vencimento: ${dataBR(vencimento)}
+      </div>
+    `;
+
+  }else if(hoje <= limite){
+
+    el.style.background = '#fff7df';
+    el.style.color = '#8a6515';
+
+    el.innerHTML = `
+      🟡 Prazo de pagamento
+      <div style="font-size:12px;font-weight:500;margin-top:3px;">
+        Venceu em ${dataBR(vencimento)} • prazo até ${dataBR(limite)}
+      </div>
+    `;
+
+  }else{
+
+    el.style.background = '#fff0ef';
+    el.style.color = '#b23b32';
+
+    el.innerHTML = `
+      🔴 Prazo encerrado
+      <div style="font-size:12px;font-weight:500;margin-top:3px;">
+        Prazo encerrado em ${dataBR(limite)}
+      </div>
+    `;
+  }
+}
+  async function updateRow(table,id,row){
  row.user_id=uid();
  return await api(`/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`,{
    method:'PATCH',
@@ -4293,7 +4372,8 @@ async function deleteRow(table,id){
    method:'DELETE'
  });
 }
-
+  
+ em ${dataBR(vencimento)} • prazo até ${da
 async function excluirProdutorCompleto(id,btn=null){
 
   const produtor=
