@@ -2828,6 +2828,179 @@ atualizarResumoProducaoProdutor(
   select.value
 );
 }
+
+function abrirRelatorioTecnico(tipo){
+
+  const nomes={
+    atividades:'📋 Relatório de atividades',
+    financeiro:'💰 Relatório financeiro',
+    produtividade:'📈 Relatório de produtividade',
+    manejos:'🌱 Manejos e insumos',
+    lavouras:'🏡 Propriedades e lavouras',
+    completo:'👨‍🌾 Relatório completo do produtor'
+  };
+
+  const titulo=
+    nomes[tipo] ||
+    '📊 Relatório';
+
+
+  const produtores=
+    [...state.produtores]
+      .sort((a,b)=>
+        String(a.nome||'')
+          .localeCompare(
+            String(b.nome||''),
+            'pt-BR'
+          )
+      );
+
+
+  const w=
+    $('#modalWrap');
+
+  w.className=
+    'modal-backdrop';
+
+
+  w.innerHTML=`
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <h3>
+          ${titulo}
+        </h3>
+
+        <button
+          class="close"
+          id="closeModal">
+          ×
+        </button>
+
+      </div>
+
+
+      <div>
+
+        <div class="field">
+
+          <label>
+            👨‍🌾 Produtor
+          </label>
+
+          <select
+            id="relatorioProdutor">
+
+            <option value="">
+              Todos os produtores
+            </option>
+
+            ${
+              produtores.map(p=>`
+                <option value="${esc(p.id)}">
+                  ${esc(p.nome||'Produtor')}
+                </option>
+              `).join('')
+            }
+
+          </select>
+
+        </div>
+
+
+        <div class="row2">
+
+          <div class="field">
+
+            <label>
+              📅 Data inicial
+            </label>
+
+            <input
+              id="relatorioDataInicial"
+              type="date">
+
+          </div>
+
+
+          <div class="field">
+
+            <label>
+              📅 Data final
+            </label>
+
+            <input
+              id="relatorioDataFinal"
+              type="date">
+
+          </div>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="btn btn-primary btn-block"
+          id="visualizarRelatorio">
+
+          👁️ VISUALIZAR RELATÓRIO
+
+        </button>
+
+
+        <button
+          type="button"
+          class="btn btn-block"
+          id="gerarPdfRelatorio"
+          style="margin-top:10px;">
+
+          📄 GERAR PDF
+
+        </button>
+
+
+        <div
+          id="resultadoRelatorio"
+          style="margin-top:20px;">
+
+          <div class="empty">
+            Escolha os filtros e visualize o relatório.
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  $('#closeModal').onclick=
+    closeModal;
+
+
+  $('#visualizarRelatorio').onclick=()=>{
+
+    toast(
+      'Relatório selecionado. Vamos montar os dados agora.'
+    );
+
+  };
+
+
+  $('#gerarPdfRelatorio').onclick=()=>{
+
+    toast(
+      'Primeiro visualize o relatório.'
+    );
+
+  };
+
+}
+
 function renderFinanceiroTecnico(){
 
   if(isProdutor()) return;
@@ -15302,7 +15475,17 @@ document.addEventListener('click',e=>{
   }
  const rm=e.target.closest('[data-realizar-manejo]');
 if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id); 
- const p=e.target.closest('[data-page]');if(p)go(p.dataset.page);
+const rel=
+  e.target.closest(
+    '[data-relatorio]'
+  );
+
+if(rel){
+  return abrirRelatorioTecnico(
+    rel.dataset.relatorio
+  );
+}
+  const p=e.target.closest('[data-page]');if(p)go(p.dataset.page);
  const g=e.target.closest('[data-go]');if(g)go(g.dataset.go);
  const o=e.target.closest('[data-open]');if(o)openForm(o.dataset.open);
  const a=e.target.closest('[data-action]');if(a)openForm(a.dataset.action,a.dataset.sid);
