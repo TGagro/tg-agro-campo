@@ -659,10 +659,92 @@ function propOfTalhao(tid){const t=state.talhoes.find(x=>x.id===tid);return t?st
 function talhaoOfSafra(s){return state.talhoes.find(t=>t.id===s.talhao_id)}
 function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduce((a,c)=>a+Number(c.peso_kg||0),0)}
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
+function renderProdutorProducao(){
+
+  if(!isProdutor()) return;
+
+  const select =
+    $('#producaoSafraSelect');
+
+  if(!select) return;
+
+  const valorAtual =
+    select.value;
+
+  const safras =
+    state.safras || [];
+
+  select.innerHTML = `
+    <option value="">
+      Selecione uma lavoura
+    </option>
+  ` +
+  safras.map(s=>{
+
+    const talhao =
+      state.talhoes.find(
+        t=>String(t.id)===
+           String(s.talhao_id)
+      );
+
+    const propriedade =
+      talhao
+        ? state.propriedades.find(
+            p=>String(p.id)===
+               String(talhao.propriedade_id)
+          )
+        : null;
+
+    const cultura =
+      s.cultura || 'Lavoura';
+
+    const variedade =
+      s.variedade
+        ? ` • ${s.variedade}`
+        : '';
+
+    const nomeTalhao =
+      talhao?.nome
+        ? ` • ${talhao.nome}`
+        : '';
+
+    const nomePropriedade =
+      propriedade?.nome
+        ? ` • ${propriedade.nome}`
+        : '';
+
+    const encerrada =
+      s.status === 'encerrada'
+        ? ' • Encerrada'
+        : '';
+
+    return `
+      <option value="${s.id}">
+        ${esc(cultura)}
+        ${esc(variedade)}
+        ${esc(nomeTalhao)}
+        ${esc(nomePropriedade)}
+        ${encerrada}
+      </option>
+    `;
+
+  }).join('');
+
+
+  if(
+    valorAtual &&
+    safras.some(
+      s=>String(s.id)===
+         String(valorAtual)
+    )
+  ){
+    select.value=valorAtual;
+  }
+}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
  renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();renderAtividadesTG();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
-renderProdutorFinanceiro();atualizarStatusFinanceiro();
+renderProdutorFinanceiro();renderProdutorProducao();atualizarStatusFinanceiro();
 }
 // =====================================================
 // DADOS DO NOVO PAINEL INICIAL
