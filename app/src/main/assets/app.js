@@ -4303,6 +4303,137 @@ async function copiarPixTG(){
     }
   }
 }
+
+async function carregarHistoricoPagamentosProdutor(produtorId){
+
+  const el = $('#historicoPagamentosProdutor');
+  if(!el) return;
+
+  try{
+
+    const pagamentos = await api(
+      '/rest/v1/pagamentos_produtores' +
+      '?produtor_id=eq.' + encodeURIComponent(produtorId) +
+      '&select=*' +
+      '&order=competencia_ano.desc,competencia_mes.desc'
+    );
+
+    if(!pagamentos || !pagamentos.length){
+
+      el.innerHTML = `
+        <div class="card">
+          <div class="empty">
+            Nenhum pagamento registrado ainda.
+          </div>
+        </div>
+      `;
+
+      return;
+    }
+
+    const meses = [
+      '',
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro'
+    ];
+
+    const dinheiro = valor =>
+      Number(valor || 0).toLocaleString(
+        'pt-BR',
+        {
+          style:'currency',
+          currency:'BRL'
+        }
+      );
+
+    const dataBRPagamento = data => {
+
+      if(!data) return '-';
+
+      const [ano,mes,dia] =
+        String(data).split('-');
+
+      return `${dia}/${mes}/${ano}`;
+    };
+
+    el.innerHTML = pagamentos.map(p=>`
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <div>
+
+            <strong>
+              ${meses[p.competencia_mes] || '-'}
+              /
+              ${p.competencia_ano}
+            </strong>
+
+            <div class="meta" style="margin-top:6px;">
+              ${dinheiro(p.valor)}
+            </div>
+
+          </div>
+
+          <span class="pill">
+            ✅ PAGO
+          </span>
+
+        </div>
+
+        <div class="meta" style="margin-top:14px;">
+          Pago em:
+          <strong>
+            ${dataBRPagamento(p.data_pagamento)}
+          </strong>
+        </div>
+
+        <div class="meta" style="margin-top:5px;">
+          Forma:
+          <strong>
+            ${String(p.forma_pagamento || '-').toUpperCase()}
+          </strong>
+        </div>
+
+        <div class="meta" style="margin-top:5px;">
+          Recibo:
+          <strong>
+            ${esc(p.numero_recibo || '-')}
+          </strong>
+        </div>
+
+      </div>
+
+    `).join('');
+
+  }catch(err){
+
+    console.error(
+      'Erro ao carregar pagamentos:',
+      err
+    );
+
+    el.innerHTML = `
+      <div class="card">
+        <div class="empty">
+          Não foi possível carregar os pagamentos.
+        </div>
+      </div>
+    `;
+  }
+}
+
 async function renderProdutorFinanceiro(){
 
   if(!isProdutor()) return;
@@ -4410,16 +4541,21 @@ async function renderProdutorFinanceiro(){
       </div>
     </div>
 
-    <div class="card">
-      <div class="empty">
-        Nenhum pagamento registrado ainda.
-      </div>
+    <div id="historicoPagamentosProdutor">
+
+  <div class="card">
+    <div class="empty">
+      Carregando pagamentos...
     </div>
+  </div>
+
+</div>
   `;
 
 
   atualizarStatusFinanceiro();
-
+  
+  carregarHistoricoPagamentosProdutor(produtorId);
 
   const btnPix = $('#copiarPixProdutor');
 
