@@ -5313,47 +5313,342 @@ function renderProdutorHistorico(){
   `).join('');
 }
 function renderProdutorFicha(){
-  const el=$('#produtorFichaContent');
-  if(!el)return;
 
-  const produtor=state.produtores[0]||null;
-  const propriedade=state.propriedades[0]||null;
-  const talhao=state.talhoes[0]||null;
-  const safra=state.safras[0]||null;
+  const el =
+    $('#produtorFichaContent');
 
-  if(!produtor && !propriedade && !safra){
-    el.innerHTML='<div class="empty">Ficha técnica ainda não disponível.</div>';
+  if(!el) return;
+
+
+  const produtor =
+    state.produtores[0] || null;
+
+  const propriedades =
+    state.propriedades || [];
+
+  const safras =
+    state.safras || [];
+
+
+  if(
+    !produtor &&
+    !propriedades.length &&
+    !safras.length
+  ){
+
+    el.innerHTML = `
+      <div class="empty">
+        Ficha técnica ainda não disponível.
+      </div>
+    `;
+
     return;
   }
 
-  const idade=safra?ageDays(safra.data_plantio):null;
 
-  el.innerHTML=`
-    <div class="card">
-      <h4>Produtor</h4>
-      <div class="meta"><strong>Nome:</strong> ${esc(produtor?.nome||'-')}</div>
-      <div class="meta"><strong>Telefone:</strong> ${esc(produtor?.telefone||'-')}</div>
-      <div class="meta"><strong>Município:</strong> ${esc(produtor?.municipio||'-')}</div>
-      <div class="meta"><strong>Estado:</strong> ${esc(produtor?.estado||'-')}</div>
-    </div>
+  el.innerHTML = `
+
+
+    <!-- PRODUTOR -->
 
     <div class="card">
-      <h4>Propriedade</h4>
-      <div class="meta"><strong>Nome:</strong> ${esc(propriedade?.nome||'-')}</div>
-      <div class="meta"><strong>Área total:</strong> ${esc(propriedade?.area_ha||'-')} ha</div>
-      <div class="meta"><strong>Protocolo:</strong> ${esc(propriedade?.protocolo||'-')}</div>
+
+      <h4 style="margin-top:0;">
+        👨‍🌾 Produtor
+      </h4>
+
+      <div class="meta">
+        <strong>Nome:</strong>
+        ${esc(produtor?.nome || '-')}
+      </div>
+
+      <div class="meta">
+        <strong>Telefone:</strong>
+        ${esc(produtor?.telefone || '-')}
+      </div>
+
+      <div class="meta">
+        <strong>Município:</strong>
+        ${esc(produtor?.municipio || '-')}
+      </div>
+
+      <div class="meta">
+        <strong>Estado:</strong>
+        ${esc(produtor?.estado || '-')}
+      </div>
+
     </div>
 
-    <div class="card">
-      <h4>Lavoura</h4>
-      <div class="meta"><strong>Cultura:</strong> ${esc(safra?.cultura||'-')}</div>
-      <div class="meta"><strong>Variedade:</strong> ${esc(safra?.variedade||'-')}</div>
-      <div class="meta"><strong>Talhão:</strong> ${esc(talhao?.nome||'-')}</div>
-      <div class="meta"><strong>Área:</strong> ${esc(talhao?.area_ha||'-')} ha</div>
-      <div class="meta"><strong>Plantio:</strong> ${safra?.data_plantio?dateBR(safra.data_plantio):'-'}</div>
-      <div class="meta"><strong>Idade:</strong> ${idade===null?'-':idade+' dias'}</div>
-      <div class="meta"><strong>Situação:</strong> ${esc(safra?.status||'-')}</div>
+
+
+    <!-- PROPRIEDADES -->
+
+    <div
+      style="
+        font-size:13px;
+        font-weight:800;
+        color:#737d77;
+        margin:22px 4px 8px;
+      ">
+      🏡 PROPRIEDADE
     </div>
+
+
+    ${
+      propriedades.length
+
+      ? propriedades.map(propriedade=>{
+
+          const area =
+            propriedade?.area_total_ha ??
+            propriedade?.area_total ??
+            propriedade?.area_ha ??
+            propriedade?.area ??
+            '-';
+
+          return `
+
+            <div class="card">
+
+              <h4 style="margin-top:0;">
+                ${esc(
+                  propriedade?.nome ||
+                  'Propriedade'
+                )}
+              </h4>
+
+              <div class="meta">
+                <strong>Área total:</strong>
+                ${esc(area)} ha
+              </div>
+
+              <div class="meta">
+                <strong>Protocolo:</strong>
+                ${esc(
+                  propriedade?.protocolo ||
+                  '-'
+                )}
+              </div>
+
+            </div>
+          `;
+
+        }).join('')
+
+      : `
+        <div class="card">
+          <div class="empty">
+            Nenhuma propriedade cadastrada.
+          </div>
+        </div>
+      `
+    }
+
+
+
+    <!-- LAVOURAS -->
+
+    <div
+      style="
+        font-size:13px;
+        font-weight:800;
+        color:#737d77;
+        margin:22px 4px 8px;
+      ">
+      🌱 MINHAS LAVOURAS
+    </div>
+
+
+    ${
+      safras.length
+
+      ? safras.map(safra=>{
+
+          const talhao =
+            state.talhoes.find(
+              t =>
+                String(t.id) ===
+                String(safra.talhao_id)
+            ) || null;
+
+
+          const propriedade =
+            talhao
+              ? propriedades.find(
+                  p =>
+                    String(p.id) ===
+                    String(
+                      talhao.propriedade_id
+                    )
+                )
+              : null;
+
+
+          const idade =
+            safra?.data_plantio
+              ? ageDays(
+                  safra.data_plantio
+                )
+              : null;
+
+
+          const ativa =
+            String(
+              safra.status || ''
+            ).toLowerCase() === 'ativa';
+
+
+          return `
+
+            <div class="card">
+
+              <div
+                style="
+                  display:flex;
+                  justify-content:space-between;
+                  align-items:flex-start;
+                  gap:10px;
+                ">
+
+                <div>
+
+                  <h4
+                    style="
+                      margin:0;
+                      font-size:19px;
+                    ">
+
+                    🌱
+                    ${esc(
+                      safra.cultura ||
+                      'Lavoura'
+                    )}
+
+                    ${
+                      safra.variedade
+                        ? ` • ${esc(
+                            safra.variedade
+                          )}`
+                        : ''
+                    }
+
+                  </h4>
+
+                  <div
+                    class="meta"
+                    style="margin-top:5px;">
+
+                    ${
+                      propriedade?.nome
+                        ? `🏡 ${esc(
+                            propriedade.nome
+                          )} • `
+                        : ''
+                    }
+
+                    ${esc(
+                      talhao?.nome ||
+                      'Talhão não informado'
+                    )}
+
+                  </div>
+
+                </div>
+
+
+                <span
+                  style="
+                    background:${
+                      ativa
+                        ? '#e8f5ec'
+                        : '#f1f1f1'
+                    };
+                    color:${
+                      ativa
+                        ? '#237443'
+                        : '#747474'
+                    };
+                    padding:6px 9px;
+                    border-radius:20px;
+                    font-size:11px;
+                    font-weight:700;
+                    white-space:nowrap;
+                  ">
+
+                  ● ${esc(
+                    safra.status ||
+                    '-'
+                  )}
+
+                </span>
+
+              </div>
+
+
+              <div
+                style="
+                  display:grid;
+                  grid-template-columns:1fr 1fr;
+                  gap:12px;
+                  margin-top:16px;
+                ">
+
+                <div class="meta">
+                  <strong>Área:</strong><br>
+                  ${esc(
+                    talhao?.area_ha ||
+                    '-'
+                  )} ha
+                </div>
+
+                <div class="meta">
+                  <strong>Plantio:</strong><br>
+
+                  ${
+                    safra?.data_plantio
+                      ? dateBR(
+                          safra.data_plantio
+                        )
+                      : '-'
+                  }
+
+                </div>
+
+                <div class="meta">
+                  <strong>Idade:</strong><br>
+
+                  ${
+                    idade === null
+                      ? '-'
+                      : idade + ' dias'
+                  }
+
+                </div>
+
+                <div class="meta">
+                  <strong>Situação:</strong><br>
+                  ${esc(
+                    safra?.status ||
+                    '-'
+                  )}
+                </div>
+
+              </div>
+
+            </div>
+          `;
+
+        }).join('')
+
+      : `
+        <div class="card">
+          <div class="empty">
+            Nenhuma lavoura cadastrada.
+          </div>
+        </div>
+      `
+    }
+
   `;
 }
 function renderProdutorInicio(){
