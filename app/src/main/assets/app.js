@@ -5070,7 +5070,7 @@ async function abrirPagamentoProdutor(produtorId){
       <input
         type="number"
         id="pagamentoValor"
-        value="350.00"
+        value="400.00"
         min="0"
         step="0.01"
         required>
