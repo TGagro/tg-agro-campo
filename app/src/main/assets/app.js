@@ -3836,6 +3836,1168 @@ function montarRelatorioFinanceiroTecnico(
   `;
 
 }
+function montarRelatorioProdutividadeTecnico(
+  produtorId='',
+  dataInicial='',
+  dataFinal=''
+){
+
+  const registros=
+    (state.colheitas||[])
+      .filter(c=>{
+
+        const ctx=
+          contextoSafra(c.safra_id);
+
+        if(
+          produtorId &&
+          String(ctx.produtor?.id)!==
+          String(produtorId)
+        ){
+          return false;
+        }
+
+        const data=
+          c.data_colheita || '';
+
+        if(dataInicial && data<dataInicial){
+          return false;
+        }
+
+        if(dataFinal && data>dataFinal){
+          return false;
+        }
+
+        return true;
+
+      });
+
+
+  const grupos=new Map();
+
+
+  registros.forEach(c=>{
+
+    const ctx=
+      contextoSafra(c.safra_id);
+
+    const chave=
+      String(c.safra_id);
+
+    if(!grupos.has(chave)){
+
+      grupos.set(chave,{
+        safra:ctx.safra,
+        talhao:ctx.talhao,
+        propriedade:ctx.propriedade,
+        produtor:ctx.produtor,
+        kg:0,
+        colheitas:0
+      });
+
+    }
+
+    const g=
+      grupos.get(chave);
+
+    g.kg+=
+      Number(c.peso_kg||0);
+
+    g.colheitas++;
+
+  });
+
+
+  const lavouras=
+    [...grupos.values()]
+      .sort((a,b)=>
+        b.kg-a.kg
+      );
+
+
+  const totalKg=
+    lavouras.reduce(
+      (t,g)=>t+g.kg,
+      0
+    );
+
+
+  const totalArea=
+    lavouras.reduce(
+      (t,g)=>
+        t+
+        Number(
+          g.talhao?.area_ha||0
+        ),
+      0
+    );
+
+
+  const produtividade=
+    totalArea
+      ?totalKg/totalArea/1000
+      :0;
+
+
+  const num=v=>
+    Number(v||0)
+      .toLocaleString(
+        'pt-BR',
+        {
+          maximumFractionDigits:2
+        }
+      );
+
+
+  if(!lavouras.length){
+
+    return `
+      <div class="empty">
+        Nenhuma produção encontrada
+        para os filtros selecionados.
+      </div>
+    `;
+
+  }
+
+
+  return `
+
+    <h3>📈 Resumo da produção</h3>
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+      ">
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Produção
+        </div>
+        <h3>
+          ${num(totalKg)} kg
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Toneladas
+        </div>
+        <h3>
+          ${num(totalKg/1000)} t
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Área considerada
+        </div>
+        <h3>
+          ${num(totalArea)} ha
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Produtividade
+        </div>
+        <h3>
+          ${num(produtividade)} t/ha
+        </h3>
+      </div>
+
+    </div>
+
+
+    <h3 style="margin-top:24px;">
+      🌾 Desempenho por lavoura
+    </h3>
+
+
+    ${lavouras.map(g=>{
+
+      const area=
+        Number(
+          g.talhao?.area_ha||0
+        );
+
+      const prod=
+        area
+          ?g.kg/area/1000
+          :0;
+
+      return `
+
+        <div class="card">
+
+          <h4>
+            🌾
+            ${esc(
+              g.safra?.cultura||
+              'Lavoura'
+            )}
+
+            ${
+              g.safra?.variedade
+                ?' • '+
+                 esc(
+                   g.safra.variedade
+                 )
+                :''
+            }
+          </h4>
+
+          <div class="meta">
+            👨‍🌾
+            ${esc(
+              g.produtor?.nome||
+              'Produtor'
+            )}
+          </div>
+
+          <div class="meta">
+            🏡
+            ${esc(
+              g.propriedade?.nome||
+              'Propriedade'
+            )}
+            ${
+              g.talhao?.nome
+                ?' • '+
+                 esc(g.talhao.nome)
+                :''
+            }
+          </div>
+
+          <div
+            style="
+              margin-top:14px;
+              display:grid;
+              grid-template-columns:
+                1fr 1fr;
+              gap:8px;
+            ">
+
+            <div>
+              <div class="meta">
+                Produção
+              </div>
+              <strong>
+                ${num(g.kg)} kg
+              </strong>
+            </div>
+
+            <div>
+              <div class="meta">
+                Produtividade
+              </div>
+              <strong>
+                ${num(prod)} t/ha
+              </strong>
+            </div>
+
+            <div>
+              <div class="meta">
+                Área
+              </div>
+              <strong>
+                ${num(area)} ha
+              </strong>
+            </div>
+
+            <div>
+              <div class="meta">
+                Colheitas
+              </div>
+              <strong>
+                ${g.colheitas}
+              </strong>
+            </div>
+
+          </div>
+
+        </div>
+
+      `;
+
+    }).join('')}
+
+  `;
+
+}
+
+
+
+function montarRelatorioManejosTecnico(
+  produtorId='',
+  dataInicial='',
+  dataFinal=''
+){
+
+  const lista=[];
+
+
+  state.adubacoes.forEach(a=>
+    lista.push({
+      ...a,
+      origem:'adubacao',
+      titulo:'Adubação',
+      icone:'🌱'
+    })
+  );
+
+
+  state.aplicacoes.forEach(a=>
+    lista.push({
+      ...a,
+      origem:'aplicacao',
+      titulo:'Borrifação',
+      icone:'💦'
+    })
+  );
+
+
+  const manejos=
+    lista
+      .filter(a=>{
+
+        const ctx=
+          contextoSafra(a.safra_id);
+
+        if(
+          produtorId &&
+          String(ctx.produtor?.id)!==
+          String(produtorId)
+        ){
+          return false;
+        }
+
+        const data=
+          a.data_aplicacao||'';
+
+        if(dataInicial && data<dataInicial){
+          return false;
+        }
+
+        if(dataFinal && data>dataFinal){
+          return false;
+        }
+
+        return true;
+
+      })
+      .sort((a,b)=>
+        String(
+          b.data_aplicacao||''
+        ).localeCompare(
+          String(
+            a.data_aplicacao||''
+          )
+        )
+      );
+
+
+  function itens(a){
+
+    const bruto=
+      a.origem==='adubacao'
+        ?a.produto
+        :a.produto_comercial;
+
+    try{
+
+      const j=
+        JSON.parse(bruto||'');
+
+      if(Array.isArray(j)){
+
+        return j.filter(x=>
+          x.produto &&
+          String(x.produto)
+            .toLowerCase()!==
+          'nenhum'
+        );
+
+      }
+
+    }catch(_){}
+
+
+    if(!bruto){
+      return [];
+    }
+
+    return [{
+      produto:bruto,
+      dose:a.dose??'',
+      unidade:
+        a.unidade_dose||''
+    }];
+
+  }
+
+
+  const totalAdub=
+    manejos.filter(
+      a=>a.origem==='adubacao'
+    ).length;
+
+
+  const totalAplic=
+    manejos.filter(
+      a=>a.origem==='aplicacao'
+    ).length;
+
+
+  const produtos=
+    new Set();
+
+
+  manejos.forEach(a=>
+    itens(a).forEach(i=>
+      produtos.add(
+        String(
+          i.produto||''
+        ).trim()
+      )
+    )
+  );
+
+
+  if(!manejos.length){
+
+    return `
+      <div class="empty">
+        Nenhum manejo encontrado
+        para os filtros selecionados.
+      </div>
+    `;
+
+  }
+
+
+  return `
+
+    <h3>
+      🌱 Resumo de manejos
+    </h3>
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+      ">
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Total
+        </div>
+        <h3>
+          ${manejos.length}
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Produtos diferentes
+        </div>
+        <h3>
+          ${produtos.size}
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          🌱 Adubações
+        </div>
+        <h3>
+          ${totalAdub}
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          💦 Borrifações
+        </div>
+        <h3>
+          ${totalAplic}
+        </h3>
+      </div>
+
+    </div>
+
+
+    <h3 style="margin-top:24px;">
+      🧪 Produtos e doses
+    </h3>
+
+
+    ${manejos.map(a=>{
+
+      const ctx=
+        contextoSafra(a.safra_id);
+
+      const produtosManejo=
+        itens(a);
+
+      return `
+
+        <div class="card">
+
+          <h4>
+            ${a.icone}
+            ${a.titulo}
+          </h4>
+
+          <div class="meta">
+            👨‍🌾
+            ${esc(
+              ctx.produtor?.nome||
+              'Produtor'
+            )}
+          </div>
+
+          <div class="meta">
+            🌾
+            ${esc(
+              ctx.safra?.cultura||
+              'Lavoura'
+            )}
+            ${
+              ctx.safra?.variedade
+                ?' • '+
+                 esc(
+                   ctx.safra.variedade
+                 )
+                :''
+            }
+          </div>
+
+          <div class="meta">
+            🏡
+            ${esc(
+              ctx.propriedade?.nome||
+              'Propriedade'
+            )}
+            ${
+              ctx.talhao?.nome
+                ?' • '+
+                 esc(ctx.talhao.nome)
+                :''
+            }
+          </div>
+
+
+          <div
+            style="
+              margin-top:12px;
+              padding-top:12px;
+              border-top:
+                1px solid #ddd;
+            ">
+
+            ${
+              produtosManejo.length
+                ?produtosManejo
+                  .map(i=>{
+
+                    let calculo=null;
+
+                    if(
+                      typeof
+                      calcularTotalManejoProdutor
+                      ==='function'
+                    ){
+
+                      calculo=
+                        calcularTotalManejoProdutor(
+                          i,
+                          ctx.safra,
+                          a.volume_calda_l||0
+                        );
+
+                    }
+
+                    return `
+
+                      <div
+                        style="
+                          margin-bottom:10px;
+                        ">
+
+                        <strong>
+                          • ${esc(
+                            i.produto
+                          )}
+                        </strong>
+
+                        <div class="meta">
+
+                          Dose:
+                          ${esc(
+                            i.dose??'-'
+                          )}
+                          ${esc(
+                            i.unidade||
+                            i.unidade_dose||
+                            ''
+                          )}
+
+                        </div>
+
+                        ${
+                          calculo
+                            ?`
+                              <div class="meta">
+
+                                Necessário:
+                                <strong>
+                                  ${
+                                    Number(
+                                      calculo.total
+                                    ).toLocaleString(
+                                      'pt-BR',
+                                      {
+                                        maximumFractionDigits:2
+                                      }
+                                    )
+                                  }
+                                  ${
+                                    calculo.unidadeTotal
+                                  }
+                                </strong>
+
+                              </div>
+                            `
+                            :''
+                        }
+
+                      </div>
+
+                    `;
+
+                  }).join('')
+                :`
+                  <div class="meta">
+                    Produto não informado.
+                  </div>
+                `
+            }
+
+          </div>
+
+
+          <div class="meta">
+            📅
+            ${dateBR(
+              a.data_aplicacao
+            )}
+          </div>
+
+        </div>
+
+      `;
+
+    }).join('')}
+
+  `;
+
+}
+
+
+
+function montarRelatorioLavourasTecnico(
+  produtorId='',
+  dataInicial='',
+  dataFinal=''
+){
+
+  const safras=
+    (state.safras||[])
+      .filter(s=>{
+
+        const ctx=
+          contextoSafra(s.id);
+
+        if(
+          produtorId &&
+          String(ctx.produtor?.id)!==
+          String(produtorId)
+        ){
+          return false;
+        }
+
+        const data=
+          s.data_plantio||'';
+
+        if(
+          dataInicial &&
+          data &&
+          data<dataInicial
+        ){
+          return false;
+        }
+
+        if(
+          dataFinal &&
+          data &&
+          data>dataFinal
+        ){
+          return false;
+        }
+
+        return true;
+
+      });
+
+
+  const propriedades=
+    new Set();
+
+  const talhoes=
+    new Set();
+
+  let area=0;
+
+
+  const talhoesSomados=
+    new Set();
+
+
+  safras.forEach(s=>{
+
+    const ctx=
+      contextoSafra(s.id);
+
+    if(ctx.propriedade?.id){
+      propriedades.add(
+        String(
+          ctx.propriedade.id
+        )
+      );
+    }
+
+    if(ctx.talhao?.id){
+
+      talhoes.add(
+        String(ctx.talhao.id)
+      );
+
+      if(
+        !talhoesSomados.has(
+          String(ctx.talhao.id)
+        )
+      ){
+
+        area+=
+          Number(
+            ctx.talhao.area_ha||0
+          );
+
+        talhoesSomados.add(
+          String(ctx.talhao.id)
+        );
+
+      }
+
+    }
+
+  });
+
+
+  const plantas=
+    safras.reduce(
+      (t,s)=>
+        t+
+        Number(
+          s.numero_plantas||0
+        ),
+      0
+    );
+
+
+  const num=v=>
+    Number(v||0)
+      .toLocaleString(
+        'pt-BR',
+        {
+          maximumFractionDigits:2
+        }
+      );
+
+
+  if(!safras.length){
+
+    return `
+      <div class="empty">
+        Nenhuma lavoura encontrada
+        para os filtros selecionados.
+      </div>
+    `;
+
+  }
+
+
+  return `
+
+    <h3>
+      🏡 Resumo das lavouras
+    </h3>
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+      ">
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Propriedades
+        </div>
+        <h3>
+          ${propriedades.size}
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Talhões
+        </div>
+        <h3>
+          ${talhoes.size}
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Lavouras
+        </div>
+        <h3>
+          ${safras.length}
+        </h3>
+      </div>
+
+      <div class="card" style="margin:0;">
+        <div class="meta">
+          Área
+        </div>
+        <h3>
+          ${num(area)} ha
+        </h3>
+      </div>
+
+    </div>
+
+
+    ${
+      plantas
+        ?`
+          <div
+            class="card"
+            style="margin-top:10px;">
+
+            <div class="meta">
+              🌱 Plantas cadastradas
+            </div>
+
+            <h3>
+              ${num(plantas)}
+            </h3>
+
+          </div>
+        `
+        :''
+    }
+
+
+    <h3 style="margin-top:24px;">
+      🌾 Lavouras cadastradas
+    </h3>
+
+
+    ${safras.map(s=>{
+
+      const ctx=
+        contextoSafra(s.id);
+
+      const status=
+        String(
+          s.status||'ativa'
+        ).toLowerCase();
+
+      return `
+
+        <div class="card">
+
+          <h4>
+            🌾
+            ${esc(
+              s.cultura||
+              'Lavoura'
+            )}
+
+            ${
+              s.variedade
+                ?' • '+
+                 esc(s.variedade)
+                :''
+            }
+          </h4>
+
+          <div class="meta">
+            👨‍🌾
+            ${esc(
+              ctx.produtor?.nome||
+              'Produtor'
+            )}
+          </div>
+
+          <div class="meta">
+            🏡
+            ${esc(
+              ctx.propriedade?.nome||
+              'Propriedade'
+            )}
+          </div>
+
+          <div class="meta">
+            🌱 Talhão:
+            ${esc(
+              ctx.talhao?.nome||
+              '-'
+            )}
+          </div>
+
+          <div class="meta">
+            Área:
+            ${num(
+              ctx.talhao?.area_ha
+            )} ha
+          </div>
+
+          ${
+            s.numero_plantas
+              ?`
+                <div class="meta">
+                  Plantas:
+                  ${num(
+                    s.numero_plantas
+                  )}
+                </div>
+              `
+              :''
+          }
+
+          ${
+            s.data_plantio
+              ?`
+                <div class="meta">
+                  Plantio:
+                  ${dateBR(
+                    s.data_plantio
+                  )}
+                </div>
+              `
+              :''
+          }
+
+          <div
+            class="meta"
+            style="margin-top:8px;">
+
+            Status:
+            <strong>
+              ${
+                status==='encerrada'
+                  ?'Encerrada'
+                  :'Ativa'
+              }
+            </strong>
+
+          </div>
+
+        </div>
+
+      `;
+
+    }).join('')}
+
+  `;
+
+}
+
+
+
+function montarRelatorioCompletoTecnico(
+  produtorId='',
+  dataInicial='',
+  dataFinal=''
+){
+
+  if(!produtorId){
+
+    return `
+
+      <div class="empty">
+
+        👨‍🌾 Selecione um produtor
+        para gerar o relatório completo.
+
+      </div>
+
+    `;
+
+  }
+
+
+  const produtor=
+    state.produtores.find(
+      p=>String(p.id)===
+         String(produtorId)
+    );
+
+
+  if(!produtor){
+
+    return `
+      <div class="empty">
+        Produtor não encontrado.
+      </div>
+    `;
+
+  }
+
+
+  return `
+
+    <div class="card">
+
+      <h3>
+        👨‍🌾
+        ${esc(
+          produtor.nome||
+          'Produtor'
+        )}
+      </h3>
+
+      ${
+        produtor.municipio
+          ?`
+            <div class="meta">
+              📍
+              ${esc(
+                produtor.municipio
+              )}
+            </div>
+          `
+          :''
+      }
+
+      ${
+        produtor.telefone
+          ?`
+            <div class="meta">
+              📱
+              ${esc(
+                produtor.telefone
+              )}
+            </div>
+          `
+          :''
+      }
+
+      ${
+        produtor.cpf_cnpj
+          ?`
+            <div class="meta">
+              CPF/CNPJ:
+              ${esc(
+                produtor.cpf_cnpj
+              )}
+            </div>
+          `
+          :''
+      }
+
+    </div>
+
+
+    <hr style="
+      margin:28px 0;
+      border:0;
+      border-top:1px solid #ddd;
+    ">
+
+
+    ${montarRelatorioLavourasTecnico(
+      produtorId,
+      dataInicial,
+      dataFinal
+    )}
+
+
+    <hr style="
+      margin:28px 0;
+      border:0;
+      border-top:1px solid #ddd;
+    ">
+
+
+    ${montarRelatorioProdutividadeTecnico(
+      produtorId,
+      dataInicial,
+      dataFinal
+    )}
+
+
+    <hr style="
+      margin:28px 0;
+      border:0;
+      border-top:1px solid #ddd;
+    ">
+
+
+    ${montarRelatorioAtividadesTecnico(
+      produtorId,
+      dataInicial,
+      dataFinal
+    )}
+
+
+    <hr style="
+      margin:28px 0;
+      border:0;
+      border-top:1px solid #ddd;
+    ">
+
+
+    ${montarRelatorioManejosTecnico(
+      produtorId,
+      dataInicial,
+      dataFinal
+    )}
+
+
+    <hr style="
+      margin:28px 0;
+      border:0;
+      border-top:1px solid #ddd;
+    ">
+
+
+    ${montarRelatorioFinanceiroTecnico(
+      produtorId,
+      dataInicial,
+      dataFinal
+    )}
+
+  `;
+
+}
 function abrirRelatorioTecnico(tipo){
 
   const nomes={
@@ -3988,8 +5150,7 @@ function abrirRelatorioTecnico(tipo){
   $('#closeModal').onclick=
     closeModal;
 
-
- $('#visualizarRelatorio').onclick=()=>{
+  $('#visualizarRelatorio').onclick=()=>{
 
   const produtorId=
     $('#relatorioProdutor')?.value || '';
@@ -4019,49 +5180,199 @@ function abrirRelatorioTecnico(tipo){
   }
 
 
-  if(tipo==='atividades'){
+  const geradores={
 
-    resultado.innerHTML=
-      montarRelatorioAtividadesTecnico(
-        produtorId,
-        dataInicial,
-        dataFinal
-      );
+    atividades:
+      montarRelatorioAtividadesTecnico,
+
+    financeiro:
+      montarRelatorioFinanceiroTecnico,
+
+    produtividade:
+      montarRelatorioProdutividadeTecnico,
+
+    manejos:
+      montarRelatorioManejosTecnico,
+
+    lavouras:
+      montarRelatorioLavourasTecnico,
+
+    completo:
+      montarRelatorioCompletoTecnico
+
+  };
+
+
+  const gerar=
+    geradores[tipo];
+
+
+  if(!gerar){
+
+    resultado.innerHTML=`
+      <div class="empty">
+        Relatório não disponível.
+      </div>
+    `;
 
     return;
 
   }
 
-   if(tipo==='financeiro'){
 
   resultado.innerHTML=
-    montarRelatorioFinanceiroTecnico(
+    gerar(
       produtorId,
       dataInicial,
       dataFinal
     );
 
-  return;
-
-}
-
-  resultado.innerHTML=`
-    <div class="empty">
-      Este relatório será configurado
-      na próxima etapa.
-    </div>
-  `;
-
 };
 
+ $('#gerarPdfRelatorio').onclick=()=>{
 
-  $('#gerarPdfRelatorio').onclick=()=>{
+  const resultado=
+    $('#resultadoRelatorio');
+
+  if(
+    !resultado ||
+    !resultado.innerHTML.trim() ||
+    resultado.querySelector('.empty')
+  ){
 
     toast(
-      'Primeiro visualize o relatório.'
+      'Visualize o relatório antes de gerar o PDF'
     );
 
+    return;
+
+  }
+
+
+  const produtorId=
+    $('#relatorioProdutor')?.value || '';
+
+  const produtor=
+    state.produtores.find(
+      p=>String(p.id)===
+         String(produtorId)
+    );
+
+
+  const dataInicial=
+    $('#relatorioDataInicial')?.value || '';
+
+  const dataFinal=
+    $('#relatorioDataFinal')?.value || '';
+
+
+  const nomes={
+
+    atividades:
+      'Relatório de Atividades',
+
+    financeiro:
+      'Relatório Financeiro',
+
+    produtividade:
+      'Relatório de Produtividade',
+
+    manejos:
+      'Relatório de Manejos e Insumos',
+
+    lavouras:
+      'Relatório de Propriedades e Lavouras',
+
+    completo:
+      'Relatório Completo do Produtor'
+
   };
+
+
+  const titulo=
+    nomes[tipo] ||
+    'Relatório TG Agro';
+
+
+  const cabecalho=`
+
+    <div class="pdf-cabecalho">
+
+      <h1>
+        TG Agro Consultoria
+      </h1>
+
+      <h2>
+        ${esc(titulo)}
+      </h2>
+
+      ${
+        produtor
+          ?`
+            <p>
+              <strong>Produtor:</strong>
+              ${esc(produtor.nome||'')}
+            </p>
+          `
+          :`
+            <p>
+              <strong>Produtores:</strong>
+              Todos
+            </p>
+          `
+      }
+
+      ${
+        dataInicial || dataFinal
+          ?`
+            <p>
+              <strong>Período:</strong>
+              ${
+                dataInicial
+                  ?dateBR(dataInicial)
+                  :'Início'
+              }
+              até
+              ${
+                dataFinal
+                  ?dateBR(dataFinal)
+                  :'Hoje'
+              }
+            </p>
+          `
+          :''
+      }
+
+    </div>
+
+  `;
+
+
+  const html=
+    cabecalho +
+    resultado.innerHTML;
+
+
+  if(
+    window.AndroidTG &&
+    typeof AndroidTG.gerarPdfRelatorio===
+      'function'
+  ){
+
+    AndroidTG.gerarPdfRelatorio(
+      html,
+      titulo
+    );
+
+  }else{
+
+    toast(
+      'Gerador de PDF indisponível nesta versão do aplicativo'
+    );
+
+  }
+
+};
 
 }
 
