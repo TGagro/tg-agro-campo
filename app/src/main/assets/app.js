@@ -3854,10 +3854,11 @@ function renderProdutorInicio(){
     : null;
 
   const area =
-    propriedade?.area_total ??
-    propriedade?.area_ha ??
-    propriedade?.area ??
-    null;
+  propriedade?.area_total_ha ??
+  propriedade?.area_total ??
+  propriedade?.area_ha ??
+  propriedade?.area ??
+  null;
 
   const totalTalhoes = propriedade
     ? state.talhoes.filter(
