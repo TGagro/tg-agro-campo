@@ -4486,6 +4486,102 @@ async function excluirProdutorCompleto(id,btn=null){
   }
 }
 
+async function enviarContratoProdutor(produtorId, arquivo){
+
+  if(!arquivo){
+    toast('Selecione um contrato');
+    return;
+  }
+
+  if(
+    arquivo.type !== 'application/pdf' &&
+    !arquivo.name.toLowerCase().endsWith('.pdf')
+  ){
+    toast('Selecione um arquivo PDF');
+    return;
+  }
+
+  try{
+
+    toast('Enviando contrato...');
+
+    const caminho =
+      encodeURIComponent(produtorId) +
+      '/contrato.pdf';
+
+    const res = await fetch(
+      SUPABASE_URL +
+      '/storage/v1/object/Contratos/' +
+      caminho,
+      {
+        method:'POST',
+
+        headers:{
+          'apikey':SUPABASE_KEY,
+
+          'Authorization':
+            'Bearer ' +
+            state.session.access_token,
+
+          'Content-Type':'application/pdf',
+
+          'x-upsert':'true'
+        },
+
+        body:arquivo
+      }
+    );
+
+    if(!res.ok){
+
+      let mensagem='Erro ao enviar contrato';
+
+      try{
+        const dados=await res.json();
+        mensagem=
+          dados.message ||
+          dados.error ||
+          mensagem;
+      }catch(e){}
+
+      throw new Error(mensagem);
+    }
+
+    toast('✓ Contrato enviado com sucesso');
+
+    const status=
+      $('#contratoAdminStatus');
+
+    if(status){
+      status.textContent=
+        '✅ Contrato disponível';
+    }
+
+    const ver=
+      $('#verContratoAdmin');
+
+    const excluir=
+      $('#excluirContratoAdmin');
+
+    if(ver){
+      ver.style.display='block';
+    }
+
+    if(excluir){
+      excluir.style.display='block';
+    }
+
+  }catch(err){
+
+    console.error(err);
+
+    toast(
+      err.message ||
+      'Não foi possível enviar o contrato'
+    );
+  }
+}
+
 function viewProdutor(id){
 
   const p=state.produtores.find(
@@ -4710,7 +4806,53 @@ ${
 
   $('#closeModal').onclick=
     closeModal;
+const btnAdicionarContrato =
+  $('#adicionarContratoProdutor');
 
+const inputContrato =
+  $('#arquivoContratoProdutor');
+
+if(btnAdicionarContrato && inputContrato){
+
+  btnAdicionarContrato.onclick=()=>{
+
+    inputContrato.value='';
+    inputContrato.click();
+
+  };
+
+  inputContrato.onchange=async()=>{
+
+    const arquivo =
+      inputContrato.files?.[0];
+
+    if(!arquivo)return;
+
+    const textoAnterior =
+      btnAdicionarContrato.textContent;
+
+    btnAdicionarContrato.disabled=true;
+    btnAdicionarContrato.textContent=
+      '⏳ ENVIANDO...';
+
+    try{
+
+      await enviarContratoProdutor(
+        id,
+        arquivo
+      );
+
+    }finally{
+
+      btnAdicionarContrato.disabled=false;
+      btnAdicionarContrato.textContent=
+        textoAnterior;
+
+    }
+
+  };
+
+}
 
   $('#editarDadosProdutor').onclick=()=>{
 
