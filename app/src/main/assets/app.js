@@ -2954,10 +2954,32 @@ function renderFinanceiroTecnico(){
         String(p.status || '')
           .toLowerCase() === 'pago'
     );
+const pagamentosRecebidosMes =
+  pagamentos.filter(p=>{
 
+    if(
+      String(p.status || '')
+        .toLowerCase() !== 'pago'
+    ){
+      return false;
+    }
+
+    if(!p.data_pagamento){
+      return false;
+    }
+
+    const partes =
+      String(p.data_pagamento)
+        .split('-');
+
+    return (
+      Number(partes[0]) === anoAtual &&
+      Number(partes[1]) === mesAtual
+    );
+  });
 
   const recebidoMes =
-    pagamentosMes.reduce(
+    pagamentosRecebidosMes.reduce(
       (total,p)=>
         total + Number(p.valor || 0),
       0
