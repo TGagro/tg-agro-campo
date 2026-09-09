@@ -5445,10 +5445,11 @@ function renderProdutorLavoura(){
     `;
   }).join('');
 }
-function calcularAduboTotalProdutor(item, safra){
-
-  const plantas=
-    Number(safra?.numero_plantas || 0);
+function calcularTotalManejoProdutor(
+  item,
+  safra,
+  volumeCaldaL=0
+){
 
   const dose=
     Number(
@@ -5456,68 +5457,600 @@ function calcularAduboTotalProdutor(item, safra){
         .replace(',', '.')
     );
 
+  if(!dose || dose<=0){
+    return null;
+  }
+
   const unidade=
     normalizarTexto(
       item?.unidade || ''
+    ).replace(/\s+/g,'');
+
+  const plantas=
+    Number(
+      safra?.numero_plantas || 0
     );
 
+  const talhao=
+    talhaoOfSafra(safra);
 
-  if(!plantas || !dose){
-    return null;
-  }
+  const area=
+    Number(
+      talhao?.area_ha || 0
+    );
+
+  const volume=
+    Number(
+      volumeCaldaL || 0
+    );
+
+  let total=null;
+  let unidadeTotal='';
+  let base='';
 
 
-  let totalKg=null;
+  // =========================
+  // POR PLANTA / COVA
+  // =========================
 
-
-  // g por planta / cova
   if(
     unidade.includes('g/planta') ||
-    unidade.includes('g/p') ||
-    unidade.includes('g/cova') ||
-    unidade.includes('g por planta') ||
-    unidade.includes('g por cova')
+    unidade.includes('g/cova')
   ){
 
-    totalKg=
+    if(!plantas)return null;
+
+    total=
       (dose * plantas) / 1000;
 
+    unidadeTotal='kg';
+    base=`${plantas} plantas`;
   }
 
 
-  // kg por planta / cova
   if(
     unidade.includes('kg/planta') ||
-    unidade.includes('kg/cova') ||
-    unidade.includes('kg por planta') ||
-    unidade.includes('kg por cova')
+    unidade.includes('kg/cova')
   ){
 
-    totalKg=
+    if(!plantas)return null;
+
+    total=
       dose * plantas;
 
+    unidadeTotal='kg';
+    base=`${plantas} plantas`;
   }
 
 
-  if(totalKg===null){
+  // =========================
+  // POR HECTARE
+  // =========================
+
+  if(unidade==='g/ha'){
+
+    if(!area)return null;
+
+    total=
+      (dose * area) / 1000;
+
+    unidadeTotal='kg';
+    base=`${area} ha`;
+  }
+
+
+  if(unidade==='kg/ha'){
+
+    if(!area)return null;
+
+    total=
+      dose * area;
+
+    unidadeTotal='kg';
+    base=`${area} ha`;
+  }
+
+
+  if(unidade==='ml/ha'){
+
+    if(!area)return null;
+
+    total=
+      (dose * area) / 1000;
+
+    unidadeTotal='L';
+    base=`${area} ha`;
+  }
+
+
+  if(unidade==='l/ha'){
+
+    if(!area)return null;
+
+    total=
+      dose * area;
+
+    unidadeTotal='L';
+    base=`${area} ha`;
+  }
+
+
+  // =========================
+  // POR VOLUME DE CALDA
+  // Ex.: mL/20L, g/20L,
+  //      mL/100L, g/100L
+  // =========================
+
+  const porCalda=
+    unidade.match(
+      /^(ml|l|g|kg)\/([0-9.]+)l$/
+    );
+
+  if(porCalda){
+
+    if(!volume)return null;
+
+    const tipo=
+      porCalda[1];
+
+    const divisor=
+      Number(porCalda[2]);
+
+    if(!divisor)return null;
+
+    const vezes=
+      volume / divisor;
+
+    const quantidade=
+      dose * vezes;
+
+
+    if(tipo==='ml'){
+
+      total=
+        quantidade / 1000;
+
+      unidadeTotal='L';
+
+    }
+
+
+    if(tipo==='l'){
+
+      total=
+        quantidade;
+
+      unidadeTotal='L';
+
+    }
+
+
+    if(tipo==='g'){
+
+      total=
+        quantidade / 1000;
+
+      unidadeTotal='kg';
+
+    }
+
+
+    if(tipo==='kg'){
+
+      total=
+        quantidade;
+
+      unidadeTotal='kg';
+
+    }
+
+
+    base=
+      `${volume} L de calda`;
+  }
+
+
+  if(total===null){
     return null;
   }
-
-
-  const compraKg=
-    totalKg * 1.05;
 
 
   return {
 
-    plantas,
     dose,
-    totalKg,
-    compraKg
+    plantas,
+    area,
+    volumeCaldaL:volume,
+
+    total,
+
+    compra:
+      total * 1.05,
+
+    unidadeTotal,
+
+    base
 
   };
 
 }
+
+function abrirDetalheManejoProdutor(
+  origem,
+  id
+){
+
+  const lista=
+    origem==='adubacao'
+      ?state.adubacoes
+      :state.aplicacoes;
+
+  const a=
+    lista.find(
+      x=>String(x.id)===String(id)
+    );
+
+  if(!a){
+    toast('Atividade não encontrada');
+    return;
+  }
+
+
+  const ctx=
+    contextoSafra(
+      a.safra_id
+    );
+
+  const safra=
+    ctx.safra;
+
+  if(!safra){
+    toast('Lavoura não encontrada');
+    return;
+  }
+
+
+  let itens=[];
+
+
+  try{
+
+    const bruto=
+      origem==='adubacao'
+        ?a.produto
+        :a.produto_comercial;
+
+    const j=
+      JSON.parse(bruto||'');
+
+    if(Array.isArray(j)){
+
+      itens=
+        j.map(x=>({
+
+          categoria:
+            x.categoria||'',
+
+          produto:
+            x.produto||'',
+
+          dose:
+            x.dose??'',
+
+          unidade:
+            x.unidade||
+            x.unidade_dose||
+            ''
+
+        }))
+        .filter(x=>x.produto);
+
+    }
+
+  }catch(_){}
+
+
+  if(!itens.length){
+
+    itens=[{
+
+      categoria:
+        origem==='aplicacao'
+          ?a.finalidade||''
+          :'',
+
+      produto:
+        origem==='adubacao'
+          ?a.produto||''
+          :a.produto_comercial||'',
+
+      dose:
+        a.dose??'',
+
+      unidade:
+        a.unidade_dose||''
+
+    }];
+
+  }
+
+
+  const volumeCalda=
+    Number(
+      a.volume_calda_l || 0
+    );
+
+
+  const fmt=n=>
+    Number(n||0)
+      .toLocaleString(
+        'pt-BR',
+        {
+          maximumFractionDigits:3
+        }
+      );
+
+
+  const produtosHTML=
+    itens.map(item=>{
+
+      const calc=
+        calcularTotalManejoProdutor(
+          item,
+          safra,
+          volumeCalda
+        );
+
+
+      return `
+
+        <div class="card">
+
+          <h4 style="margin-top:0;">
+
+            ${
+              item.categoria
+                ?esc(item.categoria)+' • '
+                :''
+            }
+
+            ${esc(item.produto)}
+
+          </h4>
+
+
+          <div class="meta">
+
+            Dose recomendada:
+
+            <strong>
+              ${esc(item.dose)}
+              ${esc(item.unidade)}
+            </strong>
+
+          </div>
+
+
+          ${
+            calc
+              ?`
+
+                <div
+                  style="
+                    margin-top:14px;
+                    padding-top:12px;
+                    border-top:1px solid #ddd;
+                  ">
+
+                  <div class="meta">
+                    Base do cálculo
+                  </div>
+
+                  <strong>
+                    ${esc(calc.base)}
+                  </strong>
+
+
+                  <div
+                    style="
+                      margin-top:14px;
+                    ">
+
+                    <div class="meta">
+                      Quantidade necessária
+                    </div>
+
+                    <strong
+                      style="
+                        font-size:24px;
+                      ">
+
+                      ${fmt(calc.total)}
+                      ${calc.unidadeTotal}
+
+                    </strong>
+
+                  </div>
+
+
+                  <div
+                    style="
+                      margin-top:14px;
+                      padding:12px;
+                      border-radius:12px;
+                      background:#f5f0dc;
+                    ">
+
+                    <div class="meta">
+                      🛒 Sugestão para compra
+                      (+5% de reserva)
+                    </div>
+
+                    <strong
+                      style="
+                        font-size:24px;
+                      ">
+
+                      ${fmt(calc.compra)}
+                      ${calc.unidadeTotal}
+
+                    </strong>
+
+                  </div>
+
+                </div>
+
+              `
+              :`
+
+                <div
+                  class="meta"
+                  style="margin-top:12px;">
+
+                  ℹ️ Não foi possível calcular
+                  automaticamente a quantidade total
+                  para esta unidade.
+
+                </div>
+
+              `
+          }
+
+        </div>
+
+      `;
+
+    }).join('');
+
+
+  const w=
+    $('#modalWrap');
+
+  w.className=
+    'modal-backdrop';
+
+
+  w.innerHTML=`
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <h3>
+          ${
+            origem==='adubacao'
+              ?'🌱 Detalhes da adubação'
+              :'💦 Detalhes da borrifação'
+          }
+        </h3>
+
+        <button
+          class="close"
+          id="closeModal">
+          ×
+        </button>
+
+      </div>
+
+
+      <div>
+
+        <div class="card">
+
+          <strong>
+            🌾 ${esc(
+              safra.cultura||
+              'Lavoura'
+            )}
+            ${
+              safra.variedade
+                ?' • '+
+                 esc(safra.variedade)
+                :''
+            }
+          </strong>
+
+          ${
+            ctx.propriedade?.nome
+              ?`
+                <div class="meta">
+                  🏡 ${esc(
+                    ctx.propriedade.nome
+                  )}
+                  ${
+                    ctx.talhao?.nome
+                      ?' • '+
+                       esc(ctx.talhao.nome)
+                      :''
+                  }
+                </div>
+              `
+              :''
+          }
+
+          <div class="meta">
+            📅 ${dateBR(
+              a.data_aplicacao
+            )}
+          </div>
+
+          ${
+            safra.numero_plantas
+              ?`
+                <div class="meta">
+                  🌱 ${Number(
+                    safra.numero_plantas
+                  ).toLocaleString(
+                    'pt-BR'
+                  )} plantas cadastradas
+                </div>
+              `
+              :''
+          }
+
+          ${
+            volumeCalda
+              ?`
+                <div class="meta">
+                  💧 Volume total da calda:
+                  ${fmt(volumeCalda)} L
+                </div>
+              `
+              :''
+          }
+
+        </div>
+
+
+        ${produtosHTML}
+
+
+        <div
+          class="meta"
+          style="
+            margin:14px 4px;
+            text-align:center;
+          ">
+
+          ⚠️ Os 5% adicionais são somente
+          uma reserva para compra.
+          A dose recomendada para aplicação
+          não deve ser aumentada.
+
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  $('#closeModal').onclick=
+    closeModal;
+
+}
+
 function renderProdutorManejos(){
 
   const el=$('#produtorManejosContent');
@@ -5861,7 +6394,11 @@ function renderProdutorManejos(){
 
     return `
 
-      <div class="card">
+      <div
+  class="card card-click"
+  data-detalhe-manejo
+  data-origem="${esc(a.origem)}"
+  data-id="${esc(a.id)}">
 
         <div class="card-row">
 
@@ -12049,6 +12586,11 @@ if(itens.some(x=>x.dose==='' || x.unidade==='')){
       ?null
       :fd.get('data_aplicacao'),
 
+      volume_calda_l:
+  fd.get('volume_calda_l')
+    ? Number(fd.get('volume_calda_l'))
+    : null,
+
       finalidade:'Coquetel',
 
       produto_comercial:
@@ -12182,6 +12724,16 @@ if(itens.some(x=>x.dose==='' || x.unidade==='')){
               '[name="data_aplicacao"]'
             ).value=
               a.data_aplicacao||'';
+          
+          const campoVolumeCalda=
+  form.querySelector(
+    '[name="volume_calda_l"]'
+  );
+
+if(campoVolumeCalda){
+  campoVolumeCalda.value=
+    a.volume_calda_l ?? '';
+}
 
           form
             .querySelector(
@@ -14766,6 +15318,19 @@ if(fp){
   );
 
 }
+
+  const dm=
+  e.target.closest(
+    '[data-detalhe-manejo]'
+  );
+
+if(dm){
+  return abrirDetalheManejoProdutor(
+    dm.dataset.origem,
+    dm.dataset.id
+  );
+}
+  
 const ep=e.target.closest('[data-edit-produtor]');if(ep)return viewProdutor(ep.dataset.editProdutor);
  const epr=e.target.closest('[data-edit-propriedade]');
 
