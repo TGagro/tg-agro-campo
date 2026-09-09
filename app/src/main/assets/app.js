@@ -659,6 +659,621 @@ function propOfTalhao(tid){const t=state.talhoes.find(x=>x.id===tid);return t?st
 function talhaoOfSafra(s){return state.talhoes.find(t=>t.id===s.talhao_id)}
 function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduce((a,c)=>a+Number(c.peso_kg||0),0)}
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
+async function excluirProducaoProdutor(id){
+
+  const registro =
+    state.colheitas.find(
+      c=>String(c.id)===String(id)
+    );
+
+  if(!registro){
+    toast('Produção não encontrada');
+    return;
+  }
+
+
+  const confirmar =
+    confirm(
+      'Deseja realmente excluir este lançamento de produção?\n\n' +
+      `${dateBR(registro.data_colheita)} • ` +
+      `${Number(registro.peso_kg || 0).toLocaleString('pt-BR')} kg`
+    );
+
+  if(!confirmar) return;
+
+
+  try{
+
+    await deleteRow(
+      'colheitas',
+      id
+    );
+
+    toast(
+      '✓ Produção excluída'
+    );
+
+    await loadAll();
+
+  }catch(err){
+
+    console.error(
+      'Erro ao excluir produção:',
+      err
+    );
+
+    toast(
+      'Não foi possível excluir a produção'
+    );
+  }
+}
+
+
+
+function editarProducaoProdutor(id){
+
+  const registro =
+    state.colheitas.find(
+      c=>String(c.id)===String(id)
+    );
+
+  if(!registro){
+
+    toast(
+      'Produção não encontrada'
+    );
+
+    return;
+  }
+
+
+  const safra =
+    state.safras.find(
+      s=>
+        String(s.id)===
+        String(registro.safra_id)
+    );
+
+  if(!safra){
+
+    toast(
+      'Lavoura não encontrada'
+    );
+
+    return;
+  }
+
+
+  const cultura =
+    normalizarTexto(
+      safra.cultura || ''
+    );
+
+
+  let camposExtras='';
+
+
+  // =========================
+  // BANANA
+  // =========================
+
+  if(cultura.includes('banana')){
+
+    camposExtras=`
+
+      <div class="field">
+
+        <label>
+          🍌 Quantidade de cachos
+        </label>
+
+        <input
+          type="number"
+          id="editarProducaoQuantidadeUnidades"
+          min="0"
+          step="1"
+          value="${
+            registro.quantidade_unidades ??
+            ''
+          }">
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Ciclo da produção
+        </label>
+
+        <select id="editarProducaoCiclo">
+
+          <option
+            value="1"
+            ${
+              Number(
+                registro.ciclo_numero || 1
+              )===1
+                ? 'selected'
+                : ''
+            }>
+            1º ciclo
+          </option>
+
+          <option
+            value="2"
+            ${
+              Number(
+                registro.ciclo_numero
+              )===2
+                ? 'selected'
+                : ''
+            }>
+            2º ciclo
+          </option>
+
+          <option
+            value="3"
+            ${
+              Number(
+                registro.ciclo_numero
+              )===3
+                ? 'selected'
+                : ''
+            }>
+            3º ciclo
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Geração
+        </label>
+
+        <select id="editarProducaoGeracao">
+
+          <option
+            value="mae"
+            ${
+              registro.geracao_banana==='mae'
+                ? 'selected'
+                : ''
+            }>
+            Mãe
+          </option>
+
+          <option
+            value="filha"
+            ${
+              registro.geracao_banana==='filha'
+                ? 'selected'
+                : ''
+            }>
+            Filha
+          </option>
+
+          <option
+            value="neta"
+            ${
+              registro.geracao_banana==='neta'
+                ? 'selected'
+                : ''
+            }>
+            Neta
+          </option>
+
+        </select>
+
+      </div>
+
+    `;
+  }
+
+
+  // =========================
+  // MELANCIA / ABACAXI /
+  // MARACUJÁ
+  // =========================
+
+  else if(
+    cultura.includes('melancia') ||
+    cultura.includes('abacaxi') ||
+    cultura.includes('maracuja')
+  ){
+
+    camposExtras=`
+
+      <div class="field">
+
+        <label>
+          Quantidade de frutos
+        </label>
+
+        <input
+          type="number"
+          id="editarProducaoQuantidadeFrutos"
+          min="0"
+          step="1"
+          value="${
+            registro.quantidade_frutos ??
+            ''
+          }">
+
+      </div>
+
+    `;
+  }
+
+
+  // =========================
+  // MILHO
+  // =========================
+
+  else if(cultura.includes('milho')){
+
+    camposExtras=`
+
+      <div class="field">
+
+        <label>
+          🌽 Quantidade de sacas
+        </label>
+
+        <input
+          type="number"
+          id="editarProducaoQuantidadeUnidades"
+          min="0"
+          step="0.01"
+          value="${
+            registro.quantidade_unidades ??
+            ''
+          }">
+
+      </div>
+
+    `;
+  }
+
+
+  modal(
+
+    '✏️ Editar produção',
+
+    `
+
+      <div class="card">
+
+        <strong>
+          🌱 ${esc(
+            safra.cultura ||
+            'Lavoura'
+          )}
+        </strong>
+
+        ${
+          safra.variedade
+            ? `
+              <div
+                class="meta"
+                style="margin-top:5px;">
+
+                ${esc(
+                  safra.variedade
+                )}
+
+              </div>
+            `
+            : ''
+        }
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Data da produção / colheita
+        </label>
+
+        <input
+          type="date"
+          id="editarProducaoData"
+          value="${
+            registro.data_colheita || ''
+          }"
+          required>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Peso produzido (kg)
+        </label>
+
+        <input
+          type="number"
+          id="editarProducaoPeso"
+          min="0.01"
+          step="0.01"
+          value="${
+            registro.peso_kg || ''
+          }"
+          required>
+
+      </div>
+
+
+      ${camposExtras}
+
+
+      <div class="field">
+
+        <label>
+          Observações
+        </label>
+
+        <textarea
+          id="editarProducaoObservacoes"
+        >${esc(
+          registro.observacoes || ''
+        )}</textarea>
+
+      </div>
+
+    `,
+
+
+    async e=>{
+
+      e.preventDefault();
+
+
+      const btn =
+        e.currentTarget.querySelector(
+          'button[type="submit"]'
+        );
+
+
+      const data =
+        $('#editarProducaoData')
+          .value;
+
+
+      const peso =
+        Number(
+          $('#editarProducaoPeso')
+            .value
+        );
+
+
+      if(!data || !peso){
+
+        toast(
+          'Informe a data e o peso'
+        );
+
+        return;
+      }
+
+
+      const alteracoes={
+
+        data_colheita:data,
+
+        peso_kg:peso,
+
+        observacoes:
+          $('#editarProducaoObservacoes')
+            .value
+            .trim() || null
+
+      };
+
+
+      const campoFrutos =
+        $('#editarProducaoQuantidadeFrutos');
+
+      if(campoFrutos){
+
+        alteracoes.quantidade_frutos =
+          Number(
+            campoFrutos.value || 0
+          ) || null;
+      }
+
+
+      const campoUnidades =
+        $('#editarProducaoQuantidadeUnidades');
+
+      if(campoUnidades){
+
+        alteracoes.quantidade_unidades =
+          Number(
+            campoUnidades.value || 0
+          ) || null;
+      }
+
+
+      const campoCiclo =
+        $('#editarProducaoCiclo');
+
+      if(campoCiclo){
+
+        alteracoes.ciclo_numero =
+          Number(
+            campoCiclo.value
+          );
+      }
+
+
+      const campoGeracao =
+        $('#editarProducaoGeracao');
+
+      if(campoGeracao){
+
+        alteracoes.geracao_banana =
+          campoGeracao.value;
+      }
+
+
+      try{
+
+        btn.disabled=true;
+
+        btn.textContent=
+          'SALVANDO...';
+
+
+        await api(
+          '/rest/v1/colheitas' +
+          '?id=eq.' +
+          encodeURIComponent(id),
+          {
+            method:'PATCH',
+
+            body:JSON.stringify(
+              alteracoes
+            )
+          }
+        );
+
+
+        closeModal();
+
+
+        toast(
+          '✓ Produção atualizada'
+        );
+
+
+        await loadAll();
+
+
+      }catch(err){
+
+        console.error(
+          'Erro ao editar produção:',
+          err
+        );
+
+        toast(
+          'Não foi possível atualizar a produção'
+        );
+
+        btn.disabled=false;
+
+        btn.textContent=
+          'SALVAR';
+      }
+
+    }
+  );
+}
+function adicionarAcoesHistoricoProducao(
+  historico,
+  colheitas
+){
+
+  if(!historico || !colheitas?.length){
+    return;
+  }
+
+
+  const cards =
+    historico.querySelectorAll('.card');
+
+
+  cards.forEach((card,index)=>{
+
+    const registro =
+      colheitas[index];
+
+    if(!registro) return;
+
+
+    const acoes =
+      document.createElement('div');
+
+
+    acoes.style.cssText = `
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:8px;
+      margin-top:14px;
+      padding-top:12px;
+      border-top:1px solid #e7ebe8;
+    `;
+
+
+    acoes.innerHTML = `
+
+      <button
+        type="button"
+        class="btn"
+        data-editar-producao="${registro.id}">
+        ✏️ EDITAR
+      </button>
+
+
+      <button
+        type="button"
+        class="btn"
+        data-excluir-producao="${registro.id}"
+        style="
+          color:#b63b32;
+          border-color:#f0c9c6;
+        ">
+        🗑️ EXCLUIR
+      </button>
+
+    `;
+
+
+    card.appendChild(acoes);
+
+  });
+
+
+  historico
+    .querySelectorAll(
+      '[data-editar-producao]'
+    )
+    .forEach(btn=>{
+
+      btn.onclick=()=>{
+
+        editarProducaoProdutor(
+          btn.dataset.editarProducao
+        );
+
+      };
+
+    });
+
+
+  historico
+    .querySelectorAll(
+      '[data-excluir-producao]'
+    )
+    .forEach(btn=>{
+
+      btn.onclick=()=>{
+
+        excluirProducaoProdutor(
+          btn.dataset.excluirProducao
+        );
+
+      };
+
+    });
+}
 function atualizarResumoProducaoProdutor(safraId){
 
   const resumo =
@@ -1043,7 +1658,10 @@ if(culturaNormalizada.includes('banana')){
 
     `).join('')}
   `;
-
+adicionarAcoesHistoricoProducao(
+  historico,
+  colheitas
+);
 
   return;
 }
@@ -1204,7 +1822,10 @@ if(culturaNormalizada.includes('melancia')){
         Nenhuma produção registrada ainda.
       </div>
     `;
-
+adicionarAcoesHistoricoProducao(
+  historico,
+  colheitas
+);
   return;
 }
 
@@ -1382,6 +2003,10 @@ if(culturaNormalizada.includes('milho')){
         Nenhuma produção registrada ainda.
       </div>
     `;
+  adicionarAcoesHistoricoProducao(
+  historico,
+  colheitas
+);
 
   return;
 }
@@ -1545,6 +2170,10 @@ if(culturaNormalizada.includes('abacaxi')){
         Nenhuma produção registrada ainda.
       </div>
     `;
+  adicionarAcoesHistoricoProducao(
+  historico,
+  colheitas
+);
 
   return;
 }
@@ -1661,6 +2290,10 @@ if(culturaNormalizada.includes('abacaxi')){
 
     `).join('')}
   `;
+  adicionarAcoesHistoricoProducao(
+  historico,
+  colheitas
+);
 }
 function abrirRegistroProducaoProdutor(safraId){
 
