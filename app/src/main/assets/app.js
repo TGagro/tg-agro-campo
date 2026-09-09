@@ -855,6 +855,410 @@ function atualizarResumoProducaoProdutor(safraId){
     `).join('')}
   `;
 }
+function abrirRegistroProducaoProdutor(safraId){
+
+  const safra =
+    state.safras.find(
+      s=>String(s.id)===String(safraId)
+    );
+
+  if(!safra){
+    toast('Lavoura não encontrada');
+    return;
+  }
+
+
+  const cultura =
+    String(safra.cultura || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g,'');
+
+
+  const hoje = new Date();
+
+  const dataHoje =
+    hoje.getFullYear() + '-' +
+    String(hoje.getMonth()+1).padStart(2,'0') + '-' +
+    String(hoje.getDate()).padStart(2,'0');
+
+
+  let camposEspecificos = '';
+
+  let unidade = 'kg';
+
+  let tipoRegistro = 'semanal';
+
+
+  // =============================
+  // BANANA
+  // =============================
+
+  if(cultura.includes('banana')){
+
+    unidade = 'cachos';
+    tipoRegistro = 'colheita';
+
+    camposEspecificos = `
+
+      <div class="field">
+        <label>🍌 Quantidade de cachos</label>
+
+        <input
+          type="number"
+          id="producaoQuantidadeUnidades"
+          min="0"
+          step="1"
+          placeholder="Ex.: 120">
+      </div>
+
+
+      <div class="field">
+        <label>Ciclo da produção</label>
+
+        <select id="producaoCiclo">
+
+          <option value="1">
+            1º ciclo
+          </option>
+
+          <option value="2">
+            2º ciclo
+          </option>
+
+          <option value="3">
+            3º ciclo
+          </option>
+
+        </select>
+      </div>
+
+
+      <div class="field">
+        <label>Geração</label>
+
+        <select id="producaoGeracaoBanana">
+
+          <option value="mae">
+            Mãe
+          </option>
+
+          <option value="filha">
+            Filha
+          </option>
+
+          <option value="neta">
+            Neta
+          </option>
+
+        </select>
+      </div>
+
+    `;
+  }
+
+
+  // =============================
+  // MELANCIA
+  // =============================
+
+  else if(cultura.includes('melancia')){
+
+    unidade = 'frutos';
+    tipoRegistro = 'colheita';
+
+    camposEspecificos = `
+
+      <div class="field">
+        <label>🍉 Quantidade de frutos</label>
+
+        <input
+          type="number"
+          id="producaoQuantidadeFrutos"
+          min="0"
+          step="1"
+          placeholder="Ex.: 180">
+      </div>
+
+    `;
+  }
+
+
+  // =============================
+  // MARACUJÁ
+  // =============================
+
+  else if(cultura.includes('maracuja')){
+
+    unidade = 'kg';
+    tipoRegistro = 'semanal';
+
+    camposEspecificos = `
+
+      <div class="field">
+        <label>🍈 Quantidade de frutos (opcional)</label>
+
+        <input
+          type="number"
+          id="producaoQuantidadeFrutos"
+          min="0"
+          step="1"
+          placeholder="Opcional">
+      </div>
+
+    `;
+  }
+
+
+  // =============================
+  // MILHO
+  // =============================
+
+  else if(cultura.includes('milho')){
+
+    unidade = 'sacas';
+    tipoRegistro = 'colheita';
+
+    camposEspecificos = `
+
+      <div class="field">
+        <label>🌽 Quantidade de sacas</label>
+
+        <input
+          type="number"
+          id="producaoQuantidadeUnidades"
+          min="0"
+          step="0.01"
+          placeholder="Ex.: 60">
+      </div>
+
+    `;
+  }
+
+
+  // =============================
+  // ABACAXI
+  // =============================
+
+  else if(cultura.includes('abacaxi')){
+
+    unidade = 'frutos';
+    tipoRegistro = 'colheita';
+
+    camposEspecificos = `
+
+      <div class="field">
+        <label>🍍 Quantidade de frutos</label>
+
+        <input
+          type="number"
+          id="producaoQuantidadeFrutos"
+          min="0"
+          step="1"
+          placeholder="Ex.: 4200">
+      </div>
+
+    `;
+  }
+
+
+  modal(
+
+    '📊 Registrar produção',
+
+    `
+
+    <div class="card">
+
+      <strong>
+        🌱 ${esc(safra.cultura || 'Lavoura')}
+      </strong>
+
+      ${
+        safra.variedade
+          ? `
+            <div class="meta" style="margin-top:5px;">
+              ${esc(safra.variedade)}
+            </div>
+          `
+          : ''
+      }
+
+    </div>
+
+
+    <div class="field">
+
+      <label>Data da produção / colheita</label>
+
+      <input
+        type="date"
+        id="producaoData"
+        value="${dataHoje}"
+        required>
+
+    </div>
+
+
+    <div class="field">
+
+      <label>Peso produzido (kg)</label>
+
+      <input
+        type="number"
+        id="producaoPeso"
+        min="0.01"
+        step="0.01"
+        placeholder="Ex.: 850"
+        required>
+
+    </div>
+
+
+    ${camposEspecificos}
+
+
+    <div class="field">
+
+      <label>Observações</label>
+
+      <textarea
+        id="producaoObservacoes"
+        placeholder="Opcional"></textarea>
+
+    </div>
+
+    `,
+
+    async e=>{
+
+      e.preventDefault();
+
+      const btn =
+        e.currentTarget.querySelector(
+          'button[type="submit"]'
+        );
+
+      const peso =
+        Number($('#producaoPeso').value);
+
+      const data =
+        $('#producaoData').value;
+
+      if(!peso || !data){
+
+        toast(
+          'Informe a data e o peso produzido'
+        );
+
+        return;
+      }
+
+
+      btn.disabled=true;
+      btn.textContent='SALVANDO...';
+
+
+      try{
+
+        const quantidadeFrutos =
+          $('#producaoQuantidadeFrutos')
+            ? Number(
+                $('#producaoQuantidadeFrutos').value || 0
+              )
+            : null;
+
+
+        const quantidadeUnidades =
+          $('#producaoQuantidadeUnidades')
+            ? Number(
+                $('#producaoQuantidadeUnidades').value || 0
+              )
+            : null;
+
+
+        const ciclo =
+          $('#producaoCiclo')
+            ? Number($('#producaoCiclo').value)
+            : null;
+
+
+        const geracao =
+          $('#producaoGeracaoBanana')
+            ? $('#producaoGeracaoBanana').value
+            : null;
+
+
+        const observacoes =
+          $('#producaoObservacoes')
+            .value
+            .trim();
+
+
+        await api(
+          '/rest/v1/colheitas',
+          {
+            method:'POST',
+
+            body:JSON.stringify({
+
+              user_id:uid(),
+
+              safra_id:safraId,
+
+              data_colheita:data,
+
+              peso_kg:peso,
+
+              quantidade_frutos:
+                quantidadeFrutos || null,
+
+              tipo_registro:
+                tipoRegistro,
+
+              unidade:
+                unidade,
+
+              quantidade_unidades:
+                quantidadeUnidades || null,
+
+              ciclo_numero:
+                ciclo,
+
+              geracao_banana:
+                geracao,
+
+              observacoes:
+                observacoes || null
+
+            })
+          }
+        );
+
+
+        toast(
+          '✓ Produção registrada'
+        );
+
+
+        await loadAll();
+
+
+      }catch(err){
+
+        console.error(err);
+
+        toast(
+          'Não foi possível registrar a produção'
+        );
+
+        btn.disabled=false;
+        btn.textContent='SALVAR';
+      }
+
+    }
+  );
+}
 function renderProdutorProducao(){
 
   if(!isProdutor()) return;
@@ -943,6 +1347,32 @@ function renderProdutorProducao(){
   );
 
 };
+
+  const btnRegistrarProducao =
+  $('#registrarProducaoProdutor');
+
+if(btnRegistrarProducao){
+
+  btnRegistrarProducao.onclick=()=>{
+
+    const safraId =
+      select.value;
+
+    if(!safraId){
+
+      toast(
+        'Selecione uma lavoura'
+      );
+
+      return;
+    }
+
+    abrirRegistroProducaoProdutor(
+      safraId
+    );
+  };
+
+}
 
 
 if(!select.value && safras.length){
