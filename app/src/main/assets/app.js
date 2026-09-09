@@ -12,6 +12,7 @@ const state={
   adubacoes:[],
   aplicacoes:[],
   colheitas:[]
+  pagamentos_produtores:[]
 };
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const uid=()=>state.session?.user?.id;
@@ -653,7 +654,7 @@ function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.remove('hi
 function cacheData(){localStorage.setItem('tg_cache',JSON.stringify({perfilUsuario:state.perfilUsuario,produtores:state.produtores,propriedades:state.propriedades,talhoes:state.talhoes,safras:state.safras,adubacoes:state.adubacoes,aplicacoes:state.aplicacoes,colheitas:state.colheitas}))}
 function loadCache(){try{Object.assign(state,JSON.parse(localStorage.getItem('tg_cache')||'{}'))}catch{}}
 async function loadTable(t){const rows=await api(`/rest/v1/${t}?select=*&order=created_at.desc`);state[t]=rows||[]}
-async function loadAll(){if(!navigator.onLine){loadCache();if(isProdutor())filtrarDadosProdutor();renderAll();return}try{await Promise.all(['produtores','propriedades','talhoes','safras','adubacoes','aplicacoes','colheitas'].map(loadTable));if(isProdutor())filtrarDadosProdutor();cacheData();renderAll()}catch(e){console.error(e);loadCache();renderAll();toast('Usando dados salvos no aparelho')}}
+async function loadAll(){if(!navigator.onLine){loadCache();if(isProdutor())filtrarDadosProdutor();renderAll();return}try{await Promise.all(['produtores','propriedades','talhoes','safras','adubacoes','aplicacoes','colheitas''pagamentos_produtores'].map(loadTable));if(isProdutor())filtrarDadosProdutor();cacheData();renderAll()}catch(e){console.error(e);loadCache();renderAll();toast('Usando dados salvos no aparelho')}}
 function nameBy(arr,id,key='nome'){return arr.find(x=>x.id===id)?.[key]||'—'}
 function propOfTalhao(tid){const t=state.talhoes.find(x=>x.id===tid);return t?state.propriedades.find(p=>p.id===t.propriedade_id):null}
 function talhaoOfSafra(s){return state.talhoes.find(t=>t.id===s.talhao_id)}
@@ -2827,10 +2828,399 @@ atualizarResumoProducaoProdutor(
   select.value
 );
 }
+function renderFinanceiroTecnico(){
+
+  if(isProdutor()) return;
+
+
+  const recebidoEl =
+    $('#financeiroRecebidoMes');
+
+  const receberEl =
+    $('#financeiroAReceber');
+
+  const atrasoEl =
+    $('#financeiroEmAtraso');
+
+  const listaEl =
+    $('#financeiroMensalidadesLista');
+
+
+  if(
+    !recebidoEl ||
+    !receberEl ||
+    !atrasoEl ||
+    !listaEl
+  ){
+    return;
+  }
+
+
+  const pagamentos =
+    state.pagamentos_produtores || [];
+
+  const produtores =
+    state.produtores || [];
+
+
+  const hoje =
+    new Date();
+
+  hoje.setHours(0,0,0,0);
+
+
+  const mesAtual =
+    hoje.getMonth() + 1;
+
+  const anoAtual =
+    hoje.getFullYear();
+
+
+  const nomesMeses = [
+    '',
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro'
+  ];
+
+
+  const dinheiro =
+    valor =>
+      Number(valor || 0)
+        .toLocaleString(
+          'pt-BR',
+          {
+            style:'currency',
+            currency:'BRL'
+          }
+        );
+
+
+  // =====================================
+  // VALOR DA MENSALIDADE
+  // =====================================
+
+  function valorMensalidade(produtorId){
+
+    const historico =
+      pagamentos
+        .filter(
+          p =>
+            String(p.produtor_id) ===
+            String(produtorId)
+        )
+        .sort((a,b)=>{
+
+          const ca =
+            Number(a.competencia_ano || 0) *
+            100 +
+            Number(a.competencia_mes || 0);
+
+          const cb =
+            Number(b.competencia_ano || 0) *
+            100 +
+            Number(b.competencia_mes || 0);
+
+          return cb - ca;
+        });
+
+
+    return Number(
+      historico[0]?.valor || 400
+    );
+  }
+
+
+  // =====================================
+  // PAGAMENTOS DO MÊS
+  // =====================================
+
+  const pagamentosMes =
+    pagamentos.filter(
+      p =>
+        Number(p.competencia_mes) ===
+          mesAtual &&
+        Number(p.competencia_ano) ===
+          anoAtual &&
+        String(p.status || '')
+          .toLowerCase() === 'pago'
+    );
+
+
+  const recebidoMes =
+    pagamentosMes.reduce(
+      (total,p)=>
+        total + Number(p.valor || 0),
+      0
+    );
+
+
+  // vencimento 28 + 5 dias de prazo
+
+  const limitePagamento =
+    new Date(
+      anoAtual,
+      mesAtual - 1,
+      28
+    );
+
+  limitePagamento.setDate(
+    limitePagamento.getDate() + 5
+  );
+
+  limitePagamento.setHours(
+    23,59,59,999
+  );
+
+
+  let totalReceber = 0;
+  let totalAtraso = 0;
+
+
+  const mensalidades =
+    produtores.map(produtor=>{
+
+      const pagamento =
+        pagamentosMes.find(
+          p =>
+            String(p.produtor_id) ===
+            String(produtor.id)
+        );
+
+
+      const valor =
+        pagamento
+          ? Number(pagamento.valor || 0)
+          : valorMensalidade(
+              produtor.id
+            );
+
+
+      let status =
+        'receber';
+
+
+      if(pagamento){
+
+        status =
+          'pago';
+
+      }else if(
+        hoje > limitePagamento
+      ){
+
+        status =
+          'atraso';
+
+        totalAtraso += valor;
+
+      }else{
+
+        totalReceber += valor;
+      }
+
+
+      return {
+        produtor,
+        pagamento,
+        valor,
+        status
+      };
+
+    });
+
+
+  recebidoEl.textContent =
+    dinheiro(recebidoMes);
+
+  receberEl.textContent =
+    dinheiro(totalReceber);
+
+  atrasoEl.textContent =
+    dinheiro(totalAtraso);
+
+
+  // =====================================
+  // LISTA
+  // =====================================
+
+  if(!mensalidades.length){
+
+    listaEl.innerHTML = `
+      <div class="empty">
+        Nenhum produtor cadastrado.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  const ordemStatus = {
+    atraso:0,
+    receber:1,
+    pago:2
+  };
+
+
+  mensalidades.sort(
+    (a,b)=>
+      ordemStatus[a.status] -
+      ordemStatus[b.status]
+  );
+
+
+  listaEl.innerHTML =
+
+    mensalidades
+      .map(item=>{
+
+        let texto =
+          '🟡 A RECEBER';
+
+        let fundo =
+          '#fff7dc';
+
+        let cor =
+          '#806514';
+
+
+        if(item.status === 'pago'){
+
+          texto =
+            '✅ PAGO';
+
+          fundo =
+            '#eaf6ee';
+
+          cor =
+            '#287147';
+        }
+
+
+        if(item.status === 'atraso'){
+
+          texto =
+            '🔴 EM ATRASO';
+
+          fundo =
+            '#fff0ef';
+
+          cor =
+            '#b63b32';
+        }
+
+
+        return `
+
+          <div
+            class="card card-click"
+            data-edit-produtor="${
+              esc(item.produtor.id)
+            }">
+
+            <div class="card-row">
+
+              <div>
+
+                <h4 style="margin:0;">
+                  👨‍🌾 ${
+                    esc(
+                      item.produtor.nome ||
+                      'Produtor'
+                    )
+                  }
+                </h4>
+
+                <div
+                  class="meta"
+                  style="margin-top:5px;">
+
+                  ${
+                    nomesMeses[mesAtual]
+                  }/${anoAtual}
+
+                </div>
+
+                ${
+                  item.pagamento?.data_pagamento
+                    ? `
+                      <div class="meta">
+                        Pago em:
+                        ${dateBR(
+                          item.pagamento
+                            .data_pagamento
+                        )}
+                      </div>
+                    `
+                    : `
+                      <div class="meta">
+                        Vencimento:
+                        28/${String(
+                          mesAtual
+                        ).padStart(2,'0')}/${anoAtual}
+                      </div>
+                    `
+                }
+
+              </div>
+
+
+              <div
+                style="
+                  text-align:right;
+                ">
+
+                <strong
+                  style="
+                    font-size:18px;
+                  ">
+                  ${dinheiro(
+                    item.valor
+                  )}
+                </strong>
+
+                <div
+                  style="
+                    margin-top:7px;
+                    padding:6px 9px;
+                    border-radius:20px;
+                    font-size:11px;
+                    font-weight:800;
+                    background:${fundo};
+                    color:${cor};
+                    white-space:nowrap;
+                  ">
+                  ${texto}
+                </div>
+
+              </div>
+
+            </div>
+
+            <div class="edit-hint">
+              Toque para abrir o produtor
+            </div>
+
+          </div>
+        `;
+
+      })
+      .join('');
+}
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
  renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();renderAtividadesTG();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
-renderProdutorFinanceiro();renderProdutorProducao();atualizarStatusFinanceiro();
+renderFinanceiroTecnico();renderProdutorFinanceiro();renderProdutorProducao();atualizarStatusFinanceiro();
 }
 // =====================================================
 // DADOS DO NOVO PAINEL INICIAL
