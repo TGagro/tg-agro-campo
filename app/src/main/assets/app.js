@@ -4723,6 +4723,88 @@ async function excluirContratoProdutor(produtorId){
     );
   }
 }
+async function verificarContratoProdutor(produtorId){
+
+  const status = $('#contratoAdminStatus');
+  const btnVer = $('#verContratoAdmin');
+  const btnExcluir = $('#excluirContratoAdmin');
+  const btnAdicionar = $('#adicionarContratoProdutor');
+
+  try{
+
+    const caminho =
+      encodeURIComponent(produtorId) +
+      '/contrato.pdf';
+
+    const res = await fetch(
+      SUPABASE_URL +
+      '/storage/v1/object/sign/Contratos/' +
+      caminho,
+      {
+        method:'POST',
+        headers:{
+          'apikey':SUPABASE_KEY,
+          'Authorization':
+            'Bearer ' + state.session.access_token,
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          expiresIn:60
+        })
+      }
+    );
+
+    if(res.ok){
+
+      if(status){
+        status.textContent =
+          '✅ Contrato disponível';
+      }
+
+      if(btnVer){
+        btnVer.style.display='block';
+      }
+
+      if(btnExcluir){
+        btnExcluir.style.display='block';
+      }
+
+      if(btnAdicionar){
+        btnAdicionar.innerHTML =
+          '📎 SUBSTITUIR CONTRATO';
+      }
+
+    }else{
+
+      if(status){
+        status.textContent =
+          'Nenhum contrato enviado.';
+      }
+
+      if(btnVer){
+        btnVer.style.display='none';
+      }
+
+      if(btnExcluir){
+        btnExcluir.style.display='none';
+      }
+
+      if(btnAdicionar){
+        btnAdicionar.innerHTML =
+          '📎 ADICIONAR CONTRATO';
+      }
+
+    }
+
+  }catch(err){
+
+    console.error(
+      'Erro ao verificar contrato:',
+      err
+    );
+
+  }
+}
 
 function viewProdutor(id){
 
@@ -4944,7 +5026,7 @@ ${
 
     </div>
   `;
-
+verificarContratoProdutor(id);
 
   $('#closeModal').onclick=
     closeModal;
