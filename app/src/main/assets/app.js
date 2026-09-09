@@ -4646,6 +4646,48 @@ ${
 
       </div>
 
+      <div class="card">
+
+  <h3 style="margin-top:0;">
+    📄 Contrato
+  </h3>
+
+  <p
+    id="contratoAdminStatus"
+    class="meta">
+    Nenhum contrato enviado.
+  </p>
+
+  <input
+    type="file"
+    id="arquivoContratoProdutor"
+    accept="application/pdf"
+    style="display:none;">
+
+  <button
+    type="button"
+    class="btn btn-primary btn-block"
+    id="adicionarContratoProdutor">
+    📎 ADICIONAR CONTRATO
+  </button>
+
+  <button
+    type="button"
+    class="btn btn-block"
+    id="verContratoAdmin"
+    style="display:none;margin-top:8px;">
+    📄 VER CONTRATO
+  </button>
+
+  <button
+    type="button"
+    class="btn btn-danger btn-block"
+    id="excluirContratoAdmin"
+    style="display:none;margin-top:8px;">
+    🗑️ EXCLUIR CONTRATO
+  </button>
+
+</div>
 
       <button
         class="btn btn-primary btn-block"
