@@ -659,6 +659,202 @@ function propOfTalhao(tid){const t=state.talhoes.find(x=>x.id===tid);return t?st
 function talhaoOfSafra(s){return state.talhoes.find(t=>t.id===s.talhao_id)}
 function prodTotal(sid){return state.colheitas.filter(c=>c.safra_id===sid).reduce((a,c)=>a+Number(c.peso_kg||0),0)}
 function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(t?.area_ha||0);return ha?kg/ha/1000:0}
+function atualizarResumoProducaoProdutor(safraId){
+
+  const resumo =
+    $('#producaoResumo');
+
+  const historico =
+    $('#historicoProducaoProdutor');
+
+  if(!resumo || !historico) return;
+
+  if(!safraId){
+
+    resumo.innerHTML = `
+      <div class="empty">
+        Selecione uma lavoura para visualizar a produção.
+      </div>
+    `;
+
+    historico.innerHTML = `
+      <div class="empty">
+        Nenhuma produção registrada ainda.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  const safra =
+    state.safras.find(
+      s=>String(s.id)===String(safraId)
+    );
+
+  if(!safra) return;
+
+
+  const talhao =
+    state.talhoes.find(
+      t=>String(t.id)===
+         String(safra.talhao_id)
+    );
+
+
+  const colheitas =
+    state.colheitas
+      .filter(
+        c=>String(c.safra_id)===
+           String(safraId)
+      )
+      .sort(
+        (a,b)=>
+          String(b.data_colheita||'')
+            .localeCompare(
+              String(a.data_colheita||'')
+            )
+      );
+
+
+  const producao =
+    producaoPeriodosTG(colheitas);
+
+
+  const area =
+    Number(talhao?.area_ha || 0);
+
+
+  const produtividadeHa =
+    area
+      ? producao.anual / area / 1000
+      : 0;
+
+
+  const kg = valor =>
+    Number(valor || 0)
+      .toLocaleString(
+        'pt-BR',
+        {
+          maximumFractionDigits:2
+        }
+      );
+
+
+  resumo.innerHTML = `
+
+    <div class="card">
+
+      <h3 style="margin-top:0;">
+        🌱 ${esc(safra.cultura || 'Lavoura')}
+      </h3>
+
+      <div class="meta">
+        ${esc(talhao?.nome || '')}
+        ${area ? ` • ${kg(area)} ha` : ''}
+      </div>
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:12px;
+          margin-top:18px;
+        ">
+
+        <div>
+          <div class="meta">
+            ESTA SEMANA
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producao.semana)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            ESTE MÊS
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producao.mensal)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            ESTE ANO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producao.anual)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PRODUTIVIDADE
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(produtividadeHa)} t/ha
+          </strong>
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+
+  if(!colheitas.length){
+
+    historico.innerHTML = `
+      <div class="empty">
+        Nenhuma produção registrada ainda.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  historico.innerHTML = `
+
+    <div class="meta" style="margin-bottom:10px;">
+      🧺 <strong>HISTÓRICO DE PRODUÇÃO</strong>
+    </div>
+
+    ${colheitas.map(c=>`
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <strong>
+            ${c.data_colheita
+              ? c.data_colheita
+                  .split('-')
+                  .reverse()
+                  .join('/')
+              : '-'}
+          </strong>
+
+          <strong>
+            ${kg(c.peso_kg)} kg
+          </strong>
+
+        </div>
+
+      </div>
+
+    `).join('')}
+  `;
+}
 function renderProdutorProducao(){
 
   if(!isProdutor()) return;
@@ -740,6 +936,26 @@ function renderProdutorProducao(){
   ){
     select.value=valorAtual;
   }
+  select.onchange=()=>{
+
+  atualizarResumoProducaoProdutor(
+    select.value
+  );
+
+};
+
+
+if(!select.value && safras.length){
+
+  select.value =
+    safras[0].id;
+
+}
+
+
+atualizarResumoProducaoProdutor(
+  select.value
+);
 }
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
