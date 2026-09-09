@@ -739,8 +739,815 @@ function atualizarResumoProducaoProdutor(safraId){
           maximumFractionDigits:2
         }
       );
+const culturaNormalizada =
+  String(safra.cultura || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'');
 
 
+// ========================================
+// PAINEL ESPECÍFICO PARA BANANA
+// ========================================
+
+if(culturaNormalizada.includes('banana')){
+
+  const ultimaColheita =
+    colheitas[0] || null;
+
+
+  const cicloAtual =
+    Number(
+      ultimaColheita?.ciclo_numero || 1
+    );
+
+
+  const geracaoAtual =
+    ultimaColheita?.geracao_banana || null;
+
+
+  const colheitasCiclo =
+    colheitas.filter(c=>
+      Number(c.ciclo_numero || 1) ===
+      cicloAtual
+    );
+
+
+  const producaoCicloKg =
+    colheitasCiclo.reduce(
+      (total,c)=>
+        total + Number(c.peso_kg || 0),
+      0
+    );
+
+
+  const cachosCiclo =
+    colheitasCiclo.reduce(
+      (total,c)=>
+        total +
+        Number(c.quantidade_unidades || 0),
+      0
+    );
+
+
+  const pesoMedioCacho =
+    cachosCiclo
+      ? producaoCicloKg / cachosCiclo
+      : 0;
+
+
+  const produtividadeCiclo =
+    area
+      ? producaoCicloKg / area / 1000
+      : 0;
+
+
+  const hoje12 =
+    new Date();
+
+  const inicio12 =
+    new Date();
+
+  inicio12.setFullYear(
+    inicio12.getFullYear() - 1
+  );
+
+
+  const producao12Meses =
+    colheitas.reduce(
+      (total,c)=>{
+
+        if(!c.data_colheita){
+          return total;
+        }
+
+        const data =
+          new Date(
+            c.data_colheita + 'T00:00:00'
+          );
+
+        if(
+          data >= inicio12 &&
+          data <= hoje12
+        ){
+          return total +
+            Number(c.peso_kg || 0);
+        }
+
+        return total;
+      },
+      0
+    );
+
+
+  const nomeGeracao = {
+    mae:'Mãe',
+    filha:'Filha',
+    neta:'Neta'
+  };
+
+
+  resumo.innerHTML = `
+
+    <div class="card">
+
+      <h3 style="margin-top:0;">
+        🍌 ${esc(safra.cultura || 'Banana')}
+      </h3>
+
+      <div class="meta">
+        ${esc(talhao?.nome || '')}
+        ${area ? ` • ${kg(area)} ha` : ''}
+      </div>
+
+
+      <div
+        style="
+          display:flex;
+          gap:8px;
+          flex-wrap:wrap;
+          margin-top:14px;
+        ">
+
+        <span class="pill">
+          Ciclo ${cicloAtual}
+        </span>
+
+        ${
+          geracaoAtual
+            ? `
+              <span class="pill">
+                ${nomeGeracao[geracaoAtual] || geracaoAtual}
+              </span>
+            `
+            : ''
+        }
+
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:18px;
+          margin-top:22px;
+        ">
+
+        <div>
+          <div class="meta">
+            PRODUÇÃO DO CICLO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producaoCicloKg)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            CACHOS COLHIDOS
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(cachosCiclo)}
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PESO MÉDIO / CACHO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(pesoMedioCacho)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PRODUTIVIDADE
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(produtividadeCiclo)} t/ha
+          </strong>
+        </div>
+
+      </div>
+
+
+      <div
+        style="
+          margin-top:20px;
+          padding-top:16px;
+          border-top:1px solid #ddd;
+        ">
+
+        <div class="meta">
+          PRODUÇÃO NOS ÚLTIMOS 12 MESES
+        </div>
+
+        <strong style="font-size:22px;">
+          ${kg(producao12Meses)} kg
+        </strong>
+
+      </div>
+
+    </div>
+  `;
+
+
+  if(!colheitas.length){
+
+    historico.innerHTML = `
+      <div class="empty">
+        Nenhuma produção registrada ainda.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  historico.innerHTML = `
+
+    <div class="meta" style="margin-bottom:10px;">
+      🍌 <strong>HISTÓRICO DA BANANA</strong>
+    </div>
+
+    ${colheitas.map(c=>`
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <div>
+
+            <strong>
+              ${
+                c.data_colheita
+                  ? c.data_colheita
+                      .split('-')
+                      .reverse()
+                      .join('/')
+                  : '-'
+              }
+            </strong>
+
+            <div class="meta" style="margin-top:5px;">
+
+              Ciclo ${c.ciclo_numero || 1}
+
+              ${
+                c.geracao_banana
+                  ? ` • ${
+                      nomeGeracao[
+                        c.geracao_banana
+                      ] ||
+                      c.geracao_banana
+                    }`
+                  : ''
+              }
+
+            </div>
+
+          </div>
+
+
+          <div style="text-align:right;">
+
+            <strong>
+              ${kg(c.peso_kg)} kg
+            </strong>
+
+            ${
+              c.quantidade_unidades
+                ? `
+                  <div class="meta">
+                    ${kg(c.quantidade_unidades)}
+                    cachos
+                  </div>
+                `
+                : ''
+            }
+
+          </div>
+
+        </div>
+
+      </div>
+
+    `).join('')}
+  `;
+
+
+  return;
+}
+// ========================================
+// MELANCIA
+// ========================================
+
+if(culturaNormalizada.includes('melancia')){
+
+  const producaoCiclo =
+    colheitas.reduce(
+      (total,c)=>
+        total + Number(c.peso_kg || 0),
+      0
+    );
+
+  const frutos =
+    colheitas.reduce(
+      (total,c)=>
+        total + Number(c.quantidade_frutos || 0),
+      0
+    );
+
+  const pesoMedio =
+    frutos
+      ? producaoCiclo / frutos
+      : 0;
+
+  const produtividade =
+    area
+      ? producaoCiclo / area / 1000
+      : 0;
+
+
+  resumo.innerHTML = `
+
+    <div class="card">
+
+      <h3 style="margin-top:0;">
+        🍉 ${esc(safra.cultura || 'Melancia')}
+      </h3>
+
+      <div class="meta">
+        ${esc(talhao?.nome || '')}
+        ${area ? ` • ${kg(area)} ha` : ''}
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:18px;
+          margin-top:22px;
+        ">
+
+        <div>
+          <div class="meta">
+            PRODUÇÃO DO CICLO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producaoCiclo)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            FRUTOS COLHIDOS
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(frutos)}
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PESO MÉDIO / FRUTO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(pesoMedio)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PRODUTIVIDADE
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(produtividade)} t/ha
+          </strong>
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+
+  historico.innerHTML = colheitas.length
+    ? `
+
+      <div class="meta" style="margin-bottom:10px;">
+        🍉 <strong>HISTÓRICO DA COLHEITA</strong>
+      </div>
+
+      ${colheitas.map(c=>`
+
+        <div class="card">
+
+          <div class="card-row">
+
+            <div>
+
+              <strong>
+                ${
+                  c.data_colheita
+                    ? c.data_colheita
+                        .split('-')
+                        .reverse()
+                        .join('/')
+                    : '-'
+                }
+              </strong>
+
+              ${
+                c.quantidade_frutos
+                  ? `
+                    <div class="meta">
+                      ${kg(c.quantidade_frutos)}
+                      frutos
+                    </div>
+                  `
+                  : ''
+              }
+
+            </div>
+
+            <strong>
+              ${kg(c.peso_kg)} kg
+            </strong>
+
+          </div>
+
+        </div>
+
+      `).join('')}
+
+    `
+    : `
+      <div class="empty">
+        Nenhuma produção registrada ainda.
+      </div>
+    `;
+
+  return;
+}
+
+
+
+// ========================================
+// MILHO
+// ========================================
+
+if(culturaNormalizada.includes('milho')){
+
+  const producaoCiclo =
+    colheitas.reduce(
+      (total,c)=>
+        total + Number(c.peso_kg || 0),
+      0
+    );
+
+
+  const sacasRegistradas =
+    colheitas.reduce(
+      (total,c)=>
+        total +
+        Number(c.quantidade_unidades || 0),
+      0
+    );
+
+
+  // Se não informou sacas,
+  // estima usando saco de 60 kg.
+  const sacas =
+    sacasRegistradas ||
+    (
+      producaoCiclo
+        ? producaoCiclo / 60
+        : 0
+    );
+
+
+  const kgHa =
+    area
+      ? producaoCiclo / area
+      : 0;
+
+
+  const sacasHa =
+    area
+      ? sacas / area
+      : 0;
+
+
+  resumo.innerHTML = `
+
+    <div class="card">
+
+      <h3 style="margin-top:0;">
+        🌽 ${esc(safra.cultura || 'Milho')}
+      </h3>
+
+      <div class="meta">
+        ${esc(talhao?.nome || '')}
+        ${area ? ` • ${kg(area)} ha` : ''}
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:18px;
+          margin-top:22px;
+        ">
+
+        <div>
+          <div class="meta">
+            PRODUÇÃO DO CICLO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producaoCiclo)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            SACAS
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(sacas)}
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            KG / HA
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(kgHa)}
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            SACAS / HA
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(sacasHa)}
+          </strong>
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+
+  historico.innerHTML = colheitas.length
+    ? `
+
+      <div class="meta" style="margin-bottom:10px;">
+        🌽 <strong>HISTÓRICO DA PRODUÇÃO</strong>
+      </div>
+
+      ${colheitas.map(c=>`
+
+        <div class="card">
+
+          <div class="card-row">
+
+            <strong>
+              ${
+                c.data_colheita
+                  ? c.data_colheita
+                      .split('-')
+                      .reverse()
+                      .join('/')
+                  : '-'
+              }
+            </strong>
+
+            <div style="text-align:right;">
+
+              <strong>
+                ${kg(c.peso_kg)} kg
+              </strong>
+
+              ${
+                c.quantidade_unidades
+                  ? `
+                    <div class="meta">
+                      ${kg(c.quantidade_unidades)}
+                      sacas
+                    </div>
+                  `
+                  : ''
+              }
+
+            </div>
+
+          </div>
+
+        </div>
+
+      `).join('')}
+
+    `
+    : `
+      <div class="empty">
+        Nenhuma produção registrada ainda.
+      </div>
+    `;
+
+  return;
+}
+
+
+
+// ========================================
+// ABACAXI
+// ========================================
+
+if(culturaNormalizada.includes('abacaxi')){
+
+  const producaoCiclo =
+    colheitas.reduce(
+      (total,c)=>
+        total + Number(c.peso_kg || 0),
+      0
+    );
+
+  const frutos =
+    colheitas.reduce(
+      (total,c)=>
+        total + Number(c.quantidade_frutos || 0),
+      0
+    );
+
+  const pesoMedio =
+    frutos
+      ? producaoCiclo / frutos
+      : 0;
+
+  const produtividade =
+    area
+      ? producaoCiclo / area / 1000
+      : 0;
+
+
+  resumo.innerHTML = `
+
+    <div class="card">
+
+      <h3 style="margin-top:0;">
+        🍍 ${esc(safra.cultura || 'Abacaxi')}
+      </h3>
+
+      <div class="meta">
+        ${esc(talhao?.nome || '')}
+        ${area ? ` • ${kg(area)} ha` : ''}
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:1fr 1fr;
+          gap:18px;
+          margin-top:22px;
+        ">
+
+        <div>
+          <div class="meta">
+            PRODUÇÃO DO CICLO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(producaoCiclo)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            FRUTOS COLHIDOS
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(frutos)}
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PESO MÉDIO / FRUTO
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(pesoMedio)} kg
+          </strong>
+        </div>
+
+
+        <div>
+          <div class="meta">
+            PRODUTIVIDADE
+          </div>
+
+          <strong style="font-size:22px;">
+            ${kg(produtividade)} t/ha
+          </strong>
+        </div>
+
+      </div>
+
+    </div>
+  `;
+
+
+  historico.innerHTML = colheitas.length
+    ? `
+
+      <div class="meta" style="margin-bottom:10px;">
+        🍍 <strong>HISTÓRICO DA COLHEITA</strong>
+      </div>
+
+      ${colheitas.map(c=>`
+
+        <div class="card">
+
+          <div class="card-row">
+
+            <div>
+
+              <strong>
+                ${
+                  c.data_colheita
+                    ? c.data_colheita
+                        .split('-')
+                        .reverse()
+                        .join('/')
+                    : '-'
+                }
+              </strong>
+
+              ${
+                c.quantidade_frutos
+                  ? `
+                    <div class="meta">
+                      ${kg(c.quantidade_frutos)}
+                      frutos
+                    </div>
+                  `
+                  : ''
+              }
+
+            </div>
+
+            <strong>
+              ${kg(c.peso_kg)} kg
+            </strong>
+
+          </div>
+
+        </div>
+
+      `).join('')}
+
+    `
+    : `
+      <div class="empty">
+        Nenhuma produção registrada ainda.
+      </div>
+    `;
+
+  return;
+}
   resumo.innerHTML = `
 
     <div class="card">
