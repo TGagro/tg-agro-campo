@@ -662,6 +662,7 @@ function produtividade(s){const t=talhaoOfSafra(s),kg=prodTotal(s.id),ha=Number(
 function renderAll(){
  $('#sProd').textContent=state.produtores.length;$('#sProp').textContent=state.propriedades.length;$('#sTal').textContent=state.talhoes.length;$('#sSaf').textContent=state.safras.filter(s=>s.status!=='encerrada').length;
  renderProdutores();renderPropriedades();renderTalhoes();renderSafras();renderCadastroCampo();renderAtividadesTG();if(isProdutor()){renderProdutorLavoura();renderProdutorManejos();renderProdutorProtocolo();renderProdutorHistorico();renderProdutorFicha();renderProdutorInicio();}renderDash();
+atualizarStatusFinanceiro();
 }
 // =====================================================
 // DADOS DO NOVO PAINEL INICIAL
