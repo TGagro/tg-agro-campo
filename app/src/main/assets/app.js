@@ -3822,7 +3822,6 @@ function renderProdutorFicha(){
   `;
 }
 function renderProdutorInicio(){
-function renderProdutorInicio(){
   const el = $('#produtorInicioContent');
   if(!el) return;
 
@@ -4374,7 +4373,6 @@ async function deleteRow(table,id){
  });
 }
   
- em ${dataBR(vencimento)} • prazo até ${da
 async function excluirProdutorCompleto(id,btn=null){
 
   const produtor=
