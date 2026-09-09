@@ -5445,6 +5445,79 @@ function renderProdutorLavoura(){
     `;
   }).join('');
 }
+function calcularAduboTotalProdutor(item, safra){
+
+  const plantas=
+    Number(safra?.numero_plantas || 0);
+
+  const dose=
+    Number(
+      String(item?.dose ?? '')
+        .replace(',', '.')
+    );
+
+  const unidade=
+    normalizarTexto(
+      item?.unidade || ''
+    );
+
+
+  if(!plantas || !dose){
+    return null;
+  }
+
+
+  let totalKg=null;
+
+
+  // g por planta / cova
+  if(
+    unidade.includes('g/planta') ||
+    unidade.includes('g/p') ||
+    unidade.includes('g/cova') ||
+    unidade.includes('g por planta') ||
+    unidade.includes('g por cova')
+  ){
+
+    totalKg=
+      (dose * plantas) / 1000;
+
+  }
+
+
+  // kg por planta / cova
+  if(
+    unidade.includes('kg/planta') ||
+    unidade.includes('kg/cova') ||
+    unidade.includes('kg por planta') ||
+    unidade.includes('kg por cova')
+  ){
+
+    totalKg=
+      dose * plantas;
+
+  }
+
+
+  if(totalKg===null){
+    return null;
+  }
+
+
+  const compraKg=
+    totalKg * 1.05;
+
+
+  return {
+
+    plantas,
+    dose,
+    totalKg,
+    compraKg
+
+  };
+
+}
 function renderProdutorManejos(){
 
   const el=$('#produtorManejosContent');
@@ -11394,6 +11467,28 @@ function openAdubacao(sid){
       </div>
     </div>
 
+    <div
+  class="field"
+  id="campoVolumeCaldaAdub">
+
+  <label>
+    💧 Volume total da calda (L)
+  </label>
+
+  <input
+    name="volume_calda_l"
+    type="number"
+    step="0.1"
+    min="0"
+    placeholder="Ex.: 500">
+
+  <div class="meta">
+    Preencha para adubação foliar.
+    Na adubação por planta/cova pode deixar vazio.
+  </div>
+
+</div>
+
     <div class="field">
 
       <label>Produtos / ingredientes</label>
@@ -11478,6 +11573,11 @@ data_realizacao:
     :fd.get('data_aplicacao'),
       tipo:
         fd.get('tipo'),
+      
+      volume_calda_l:
+  fd.get('volume_calda_l')
+    ? Number(fd.get('volume_calda_l'))
+    : null,
 
       produto:
         JSON.stringify(itens),
@@ -11642,6 +11742,16 @@ if(editId){
 
       form.querySelector('[name="tipo"]').value=
         a.tipo||'Plantio';
+      
+      const campoVolumeCalda=
+  form.querySelector(
+    '[name="volume_calda_l"]'
+  );
+
+if(campoVolumeCalda){
+  campoVolumeCalda.value=
+    a.volume_calda_l ?? '';
+}
 
       form.querySelector('[name="observacoes"]').value=
         a.observacoes||'';
@@ -11838,6 +11948,25 @@ function openAplicacao(sid){
         value="${hoje}"
         required>
     </div>
+    
+    <div class="field">
+
+  <label>
+    💧 Volume total da calda (L)
+  </label>
+
+  <input
+    name="volume_calda_l"
+    type="number"
+    step="0.1"
+    min="0"
+    placeholder="Ex.: 500">
+
+  <div class="meta">
+    Informe o volume total que será preparado/aplicado.
+  </div>
+
+</div>
 
     <h3>Produtos do coquetel</h3>
 
