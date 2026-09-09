@@ -10044,6 +10044,21 @@ function viewPropriedade(id){
       t=>String(t.propriedade_id)===
          String(id)
     );
+  
+  const idsTalhoes =
+  new Set(
+    talhoes.map(
+      t=>String(t.id)
+    )
+  );
+
+
+const lavouras =
+  state.safras.filter(
+    s=>idsTalhoes.has(
+      String(s.talhao_id)
+    )
+  );
 
 
   const temLocalizacao=
@@ -10245,7 +10260,168 @@ function viewPropriedade(id){
 
       </div>
 
+     <!-- ========================= -->
+      <!-- TALHÕES -->
+      <!-- ========================= -->
 
+      <h3 style="margin-top:24px;">
+        🌱 Talhões
+      </h3>
+
+      ${
+        talhoes.length
+          ? talhoes.map(t=>`
+
+              <div
+                class="card card-click"
+                data-edit-talhao="${esc(t.id)}">
+
+                <div class="card-row">
+
+                  <div>
+
+                    <strong>
+                      ${esc(t.nome || 'Talhão')}
+                    </strong>
+
+                    <div class="meta">
+                      Área:
+                      ${
+                        Number(t.area_ha || 0)
+                          .toLocaleString('pt-BR')
+                      } ha
+                    </div>
+
+                  </div>
+
+                  <span class="pill">
+                    ${
+                      lavouras.filter(
+                        s=>String(s.talhao_id)===
+                           String(t.id)
+                      ).length
+                    } lavoura(s)
+                  </span>
+
+                </div>
+
+                <div class="edit-hint">
+                  Toque para abrir o talhão
+                </div>
+
+              </div>
+
+            `).join('')
+          : `
+              <div class="empty">
+                Nenhum talhão cadastrado.
+              </div>
+            `
+      }
+
+
+      <button
+        type="button"
+        class="btn btn-primary btn-block"
+        id="novoTalhaoPropriedadeFicha"
+        style="margin-top:10px;">
+
+        ➕ NOVO TALHÃO
+
+      </button>
+
+
+      <!-- ========================= -->
+      <!-- LAVOURAS -->
+      <!-- ========================= -->
+
+      <h3 style="margin-top:24px;">
+        🌾 Lavouras
+      </h3>
+
+      ${
+        lavouras.length
+          ? lavouras.map(s=>{
+
+              const talhao =
+                talhoes.find(
+                  t=>String(t.id)===
+                     String(s.talhao_id)
+                );
+
+              return `
+
+                <div
+                  class="card card-click"
+                  data-edit-safra="${esc(s.id)}">
+
+                  <div class="card-row">
+
+                    <div>
+
+                      <strong>
+                        🌿 ${esc(s.cultura || 'Lavoura')}
+                        ${
+                          s.variedade
+                            ? ` • ${esc(s.variedade)}`
+                            : ''
+                        }
+                      </strong>
+
+                      <div class="meta">
+                        ${
+                          esc(
+                            talhao?.nome ||
+                            'Talhão não informado'
+                          )
+                        }
+                      </div>
+
+                      ${
+                        s.data_plantio
+                          ? `
+                              <div class="meta">
+                                Plantio:
+                                ${dateBR(s.data_plantio)}
+                              </div>
+                            `
+                          : ''
+                      }
+
+                    </div>
+
+                    <span class="pill">
+                      ${esc(s.status || 'ativa')}
+                    </span>
+
+                  </div>
+
+                  <div class="edit-hint">
+                    Toque para abrir a lavoura
+                  </div>
+
+                </div>
+
+              `;
+
+            }).join('')
+          : `
+              <div class="empty">
+                Nenhuma lavoura cadastrada.
+              </div>
+            `
+      }
+
+
+      <button
+        type="button"
+        class="btn btn-primary btn-block"
+        id="novaLavouraPropriedadeFicha"
+        style="margin-top:10px;">
+
+        ➕ NOVA LAVOURA
+
+      </button>
       <button
         class="btn btn-primary btn-block"
         type="button"
@@ -10284,6 +10460,183 @@ function viewPropriedade(id){
 
     editPropriedade(id);
   };
+
+  const btnNovoTalhao =
+  $('#novoTalhaoPropriedadeFicha');
+
+if(btnNovoTalhao){
+
+  btnNovoTalhao.onclick=()=>{
+
+    closeModal();
+
+    modal(
+      'Novo talhão',
+
+      `
+        <input
+          type="hidden"
+          name="propriedade_id"
+          value="${esc(id)}">
+
+        <div class="field">
+          <label>Propriedade</label>
+
+          <input
+            value="${esc(p.nome || 'Propriedade')}"
+            disabled>
+        </div>
+
+        <div class="row2">
+
+          <div class="field">
+            <label>Nome</label>
+
+            <input
+              name="nome"
+              required
+              placeholder="Talhão 01">
+          </div>
+
+          <div class="field">
+            <label>Área (ha)</label>
+
+            <input
+              name="area_ha"
+              type="number"
+              step="0.01">
+          </div>
+
+        </div>
+
+        <div class="field">
+          <label>Observações</label>
+
+          <textarea
+            name="observacoes">
+          </textarea>
+        </div>
+      `,
+
+      submitSimple('talhoes')
+    );
+
+  };
+
+}
+
+  const btnNovaLavoura =
+  $('#novaLavouraPropriedadeFicha');
+
+if(btnNovaLavoura){
+
+  btnNovaLavoura.onclick=()=>{
+
+    if(!talhoes.length){
+      toast('Cadastre um talhão primeiro');
+      return;
+    }
+
+    closeModal();
+
+    modal(
+      'Nova lavoura',
+
+      `
+        <div class="field">
+          <label>Talhão *</label>
+
+          <select
+            name="talhao_id"
+            required>
+
+            <option value="">
+              Selecione
+            </option>
+
+            ${
+              talhoes.map(t=>`
+                <option value="${esc(t.id)}">
+                  ${esc(t.nome)}
+                </option>
+              `).join('')
+            }
+
+          </select>
+        </div>
+
+
+        <div class="row2">
+
+          <div class="field">
+            <label>Cultura *</label>
+
+            <input
+              name="cultura"
+              required
+              placeholder="Maracujá">
+          </div>
+
+          <div class="field">
+            <label>Variedade</label>
+
+            <input
+              name="variedade">
+          </div>
+
+        </div>
+
+
+        <div class="row2">
+
+          <div class="field">
+            <label>Data de plantio</label>
+
+            <input
+              name="data_plantio"
+              type="date">
+          </div>
+
+          <div class="field">
+            <label>Nº de plantas</label>
+
+            <input
+              name="numero_plantas"
+              type="number">
+          </div>
+
+        </div>
+
+
+        <div class="row2">
+
+          <div class="field">
+            <label>Espaçamento linhas (m)</label>
+
+            <input
+              name="espacamento_linhas_m"
+              type="number"
+              step="0.01">
+          </div>
+
+          <div class="field">
+            <label>Espaçamento plantas (m)</label>
+
+            <input
+              name="espacamento_plantas_m"
+              type="number"
+              step="0.01">
+          </div>
+
+        </div>
+      `,
+
+      submitSimple('safras')
+    );
+
+  };
+
+}
 
 
   // MAPA
