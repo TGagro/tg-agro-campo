@@ -29,6 +29,9 @@ import android.widget.Toast;
 import android.content.Intent;
 import android.net.Uri;
 import android.webkit.ValueCallback;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
 
 public class MainActivity extends Activity {
     private WebView webView;
@@ -217,7 +220,214 @@ public void abrirUrl(String url) {
 
     });
 }
+@JavascriptInterface
+public void gerarPdfRelatorio(
+        String html,
+        String titulo
+) {
 
+    runOnUiThread(() -> {
+
+        try {
+
+            WebView pdfWebView =
+                    new WebView(
+                            MainActivity.this
+                    );
+
+
+            WebSettings settings =
+                    pdfWebView.getSettings();
+
+            settings.setJavaScriptEnabled(
+                    false
+            );
+
+
+            String documento =
+                    "<!DOCTYPE html>" +
+                    "<html>" +
+
+                    "<head>" +
+
+                    "<meta charset='UTF-8'>" +
+
+                    "<meta name='viewport' " +
+                    "content='width=device-width, " +
+                    "initial-scale=1.0'>" +
+
+                    "<style>" +
+
+                    "@page{" +
+                    "size:A4;" +
+                    "margin:14mm;" +
+                    "}" +
+
+                    "*{" +
+                    "box-sizing:border-box;" +
+                    "}" +
+
+                    "body{" +
+                    "font-family:Arial,sans-serif;" +
+                    "color:#26352e;" +
+                    "font-size:12px;" +
+                    "line-height:1.45;" +
+                    "margin:0;" +
+                    "}" +
+
+                    ".pdf-cabecalho{" +
+                    "border-bottom:3px solid #315943;" +
+                    "padding-bottom:14px;" +
+                    "margin-bottom:20px;" +
+                    "}" +
+
+                    ".pdf-cabecalho h1{" +
+                    "font-size:22px;" +
+                    "margin:0;" +
+                    "color:#315943;" +
+                    "}" +
+
+                    ".pdf-cabecalho h2{" +
+                    "font-size:17px;" +
+                    "margin:6px 0 12px;" +
+                    "}" +
+
+                    ".pdf-cabecalho p{" +
+                    "margin:3px 0;" +
+                    "}" +
+
+                    "h3{" +
+                    "font-size:16px;" +
+                    "margin-top:20px;" +
+                    "margin-bottom:10px;" +
+                    "}" +
+
+                    "h4{" +
+                    "font-size:14px;" +
+                    "margin:0 0 7px;" +
+                    "}" +
+
+                    ".card{" +
+                    "border:1px solid #dfe5e1;" +
+                    "border-radius:10px;" +
+                    "padding:12px;" +
+                    "margin:0 0 10px;" +
+                    "page-break-inside:avoid;" +
+                    "}" +
+
+                    ".card-row{" +
+                    "display:flex;" +
+                    "justify-content:space-between;" +
+                    "gap:12px;" +
+                    "align-items:flex-start;" +
+                    "}" +
+
+                    ".meta{" +
+                    "color:#66716b;" +
+                    "font-size:11px;" +
+                    "margin-top:3px;" +
+                    "}" +
+
+                    ".empty{" +
+                    "padding:20px;" +
+                    "text-align:center;" +
+                    "color:#777;" +
+                    "}" +
+
+                    ".pill{" +
+                    "padding:5px 8px;" +
+                    "border-radius:16px;" +
+                    "background:#edf5ef;" +
+                    "font-size:10px;" +
+                    "font-weight:bold;" +
+                    "}" +
+
+                    "button{" +
+                    "display:none!important;" +
+                    "}" +
+
+                    "</style>" +
+
+                    "</head>" +
+
+                    "<body>" +
+
+                    html +
+
+                    "</body>" +
+                    "</html>";
+
+
+            pdfWebView.setWebViewClient(
+                    new WebViewClient() {
+
+                @Override
+                public void onPageFinished(
+                        WebView view,
+                        String url
+                ) {
+
+                    super.onPageFinished(
+                            view,
+                            url
+                    );
+
+
+                    PrintManager printManager =
+                            (PrintManager)
+                                    getSystemService(
+                                            Context.PRINT_SERVICE
+                                    );
+
+
+                    String nome =
+                            titulo == null ||
+                            titulo.trim().isEmpty()
+                                    ? "Relatorio TG Agro"
+                                    : titulo;
+
+
+                    PrintDocumentAdapter adapter =
+                            view.createPrintDocumentAdapter(
+                                    nome
+                            );
+
+
+                    printManager.print(
+                            nome,
+                            adapter,
+                            new PrintAttributes
+                                    .Builder()
+                                    .build()
+                    );
+
+                }
+
+            });
+
+
+            pdfWebView.loadDataWithBaseURL(
+                    "file:///android_asset/",
+                    documento,
+                    "text/html",
+                    "UTF-8",
+                    null
+            );
+
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    MainActivity.this,
+                    "Erro ao gerar PDF",
+                    Toast.LENGTH_LONG
+            ).show();
+
+        }
+
+    });
+
+}
         @JavascriptInterface
         public void capturarLocalizacao() {
 
