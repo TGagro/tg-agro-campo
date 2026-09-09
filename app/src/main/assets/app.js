@@ -4994,6 +4994,267 @@ async function verificarContratoProdutor(produtorId){
   }
 }
 
+async function abrirPagamentoProdutor(produtorId){
+
+  const produtor = state.produtores.find(
+    p => String(p.id) === String(produtorId)
+  );
+
+  if(!produtor){
+    toast('Produtor não encontrado');
+    return;
+  }
+
+  const hoje = new Date();
+
+  const mesAtual = hoje.getMonth() + 1;
+  const anoAtual = hoje.getFullYear();
+
+  const dataHoje =
+    hoje.getFullYear() + '-' +
+    String(hoje.getMonth() + 1).padStart(2,'0') + '-' +
+    String(hoje.getDate()).padStart(2,'0');
+
+
+  modal(
+    '💰 Registrar pagamento',
+
+    `
+
+    <div class="card" style="margin-bottom:16px;">
+      <strong>👨‍🌾 ${esc(produtor.nome || 'Produtor')}</strong>
+      <div class="meta" style="margin-top:5px;">
+        Registrar mensalidade paga
+      </div>
+    </div>
+
+
+    <div class="field">
+      <label>Competência • Mês</label>
+
+      <select id="pagamentoMes" required>
+
+        <option value="1" ${mesAtual===1?'selected':''}>Janeiro</option>
+        <option value="2" ${mesAtual===2?'selected':''}>Fevereiro</option>
+        <option value="3" ${mesAtual===3?'selected':''}>Março</option>
+        <option value="4" ${mesAtual===4?'selected':''}>Abril</option>
+        <option value="5" ${mesAtual===5?'selected':''}>Maio</option>
+        <option value="6" ${mesAtual===6?'selected':''}>Junho</option>
+        <option value="7" ${mesAtual===7?'selected':''}>Julho</option>
+        <option value="8" ${mesAtual===8?'selected':''}>Agosto</option>
+        <option value="9" ${mesAtual===9?'selected':''}>Setembro</option>
+        <option value="10" ${mesAtual===10?'selected':''}>Outubro</option>
+        <option value="11" ${mesAtual===11?'selected':''}>Novembro</option>
+        <option value="12" ${mesAtual===12?'selected':''}>Dezembro</option>
+
+      </select>
+    </div>
+
+
+    <div class="field">
+      <label>Ano</label>
+
+      <input
+        type="number"
+        id="pagamentoAno"
+        value="${anoAtual}"
+        min="2020"
+        max="2100"
+        required>
+    </div>
+
+
+    <div class="field">
+      <label>Valor pago (R$)</label>
+
+      <input
+        type="number"
+        id="pagamentoValor"
+        value="350.00"
+        min="0"
+        step="0.01"
+        required>
+    </div>
+
+
+    <div class="field">
+      <label>Data do pagamento</label>
+
+      <input
+        type="date"
+        id="pagamentoData"
+        value="${dataHoje}"
+        required>
+    </div>
+
+
+    <div class="field">
+      <label>Forma de pagamento</label>
+
+      <select id="pagamentoForma" required>
+
+        <option value="pix">
+          PIX
+        </option>
+
+        <option value="dinheiro">
+          Dinheiro
+        </option>
+
+        <option value="transferencia">
+          Transferência
+        </option>
+
+        <option value="outro">
+          Outro
+        </option>
+
+      </select>
+    </div>
+
+
+    <div class="field">
+      <label>Observações</label>
+
+      <textarea
+        id="pagamentoObservacoes"
+        placeholder="Opcional"></textarea>
+    </div>
+
+    `,
+
+    async e => {
+
+      e.preventDefault();
+
+      const btn =
+        e.currentTarget.querySelector(
+          'button[type="submit"]'
+        );
+
+      const mes =
+        Number($('#pagamentoMes').value);
+
+      const ano =
+        Number($('#pagamentoAno').value);
+
+      const valor =
+        Number($('#pagamentoValor').value);
+
+      const dataPagamento =
+        $('#pagamentoData').value;
+
+      const formaPagamento =
+        $('#pagamentoForma').value;
+
+      const observacoes =
+        $('#pagamentoObservacoes').value.trim();
+
+
+      if(!mes || !ano || !valor || !dataPagamento){
+
+        toast('Preencha os dados do pagamento');
+        return;
+      }
+
+
+      btn.disabled = true;
+      btn.textContent = 'SALVANDO...';
+
+
+      try{
+
+        const mesTexto =
+          String(mes).padStart(2,'0');
+
+        const dataVencimento =
+          `${ano}-${mesTexto}-28`;
+
+
+        const numeroRecibo =
+          'TG-' +
+          ano +
+          '-' +
+          String(Date.now()).slice(-8);
+
+
+        await api(
+          '/rest/v1/pagamentos_produtores',
+          {
+            method:'POST',
+
+            body:JSON.stringify({
+
+              user_id:uid(),
+
+              produtor_id:produtorId,
+
+              competencia_mes:mes,
+
+              competencia_ano:ano,
+
+              valor:valor,
+
+              data_vencimento:
+                dataVencimento,
+
+              data_pagamento:
+                dataPagamento,
+
+              forma_pagamento:
+                formaPagamento,
+
+              status:'pago',
+
+              numero_recibo:
+                numeroRecibo,
+
+              observacoes:
+                observacoes || null
+
+            })
+          }
+        );
+
+
+        toast('✓ Pagamento registrado');
+
+        viewProdutor(produtorId);
+
+
+      }catch(err){
+
+        console.error(err);
+
+        const texto =
+          String(err?.message || err);
+
+
+        if(
+          texto.includes('pagamento_mes_unico') ||
+          texto.includes('duplicate key')
+        ){
+
+          toast(
+            'Esse mês já possui pagamento registrado'
+          );
+
+        }else{
+
+          toast(
+            'Não foi possível registrar o pagamento'
+          );
+        }
+
+
+        btn.disabled = false;
+        btn.textContent = 'SALVAR';
+      }
+
+    }
+  );
+}
+
 function viewProdutor(id){
 
   const p=state.produtores.find(
@@ -5196,7 +5457,26 @@ ${
   </button>
 
 </div>
+</div>
 
+<div class="card">
+
+  <h3 style="margin-top:0;">
+    💰 Financeiro
+  </h3>
+
+  <p class="meta">
+    Registre as mensalidades pagas deste produtor.
+  </p>
+
+  <button
+    type="button"
+    class="btn btn-primary btn-block"
+    id="registrarPagamentoProdutor">
+    💰 REGISTRAR PAGAMENTO
+  </button>
+
+</div>
       <button
         class="btn btn-primary btn-block"
         type="button"
@@ -5215,6 +5495,16 @@ ${
     </div>
   `;
 verificarContratoProdutor(id);
+  const btnRegistrarPagamento =
+  $('#registrarPagamentoProdutor');
+
+if(btnRegistrarPagamento){
+
+  btnRegistrarPagamento.onclick=()=>{
+    abrirPagamentoProdutor(id);
+  };
+
+}
 
   $('#closeModal').onclick=
     closeModal;
