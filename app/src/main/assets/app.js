@@ -10843,6 +10843,8 @@ if(excluirBtn){
   };
 
 }
+
+}
   
 function editPropriedade(id){
 
