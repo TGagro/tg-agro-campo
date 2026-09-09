@@ -3144,11 +3144,11 @@ const pagamentosRecebidosMes =
 
         return `
 
-          <div
-            class="card card-click"
-            data-edit-produtor="${
-              esc(item.produtor.id)
-            }">
+         <div
+  class="card card-click"
+  data-financeiro-produtor="${
+    esc(item.produtor.id)
+  }">
 
             <div class="card-row">
 
@@ -8583,6 +8583,403 @@ async function verificarContratoProdutor(produtorId){
 
   }
 }
+function abrirFinanceiroProdutorTecnico(produtorId){
+
+  const produtor =
+    state.produtores.find(
+      p=>String(p.id)===String(produtorId)
+    );
+
+  if(!produtor){
+    toast('Produtor não encontrado');
+    return;
+  }
+
+
+  const pagamentos =
+    (state.pagamentos_produtores || [])
+      .filter(
+        p=>String(p.produtor_id)===
+           String(produtorId)
+      )
+      .sort((a,b)=>{
+
+        const ca =
+          Number(a.competencia_ano || 0) * 100 +
+          Number(a.competencia_mes || 0);
+
+        const cb =
+          Number(b.competencia_ano || 0) * 100 +
+          Number(b.competencia_mes || 0);
+
+        return cb - ca;
+      });
+
+
+  const hoje = new Date();
+
+  const mesAtual =
+    hoje.getMonth() + 1;
+
+  const anoAtual =
+    hoje.getFullYear();
+
+
+  const nomesMeses = [
+    '',
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro'
+  ];
+
+
+  const pagamentoAtual =
+    pagamentos.find(
+      p=>
+        Number(p.competencia_mes)===
+          mesAtual &&
+        Number(p.competencia_ano)===
+          anoAtual &&
+        String(p.status || '')
+          .toLowerCase()==='pago'
+    );
+
+
+  const limite =
+    new Date(
+      anoAtual,
+      mesAtual - 1,
+      28
+    );
+
+  limite.setDate(
+    limite.getDate() + 5
+  );
+
+
+  let statusTexto =
+    '🟡 A RECEBER';
+
+  let fundo =
+    '#fff7dc';
+
+  let cor =
+    '#806514';
+
+
+  if(pagamentoAtual){
+
+    statusTexto =
+      '✅ PAGO';
+
+    fundo =
+      '#eaf6ee';
+
+    cor =
+      '#287147';
+
+  }else if(hoje > limite){
+
+    statusTexto =
+      '🔴 EM ATRASO';
+
+    fundo =
+      '#fff0ef';
+
+    cor =
+      '#b63b32';
+  }
+
+
+  const dinheiro =
+    valor=>
+      Number(valor || 0)
+        .toLocaleString(
+          'pt-BR',
+          {
+            style:'currency',
+            currency:'BRL'
+          }
+        );
+
+
+  const valorAtual =
+    pagamentoAtual
+      ? Number(
+          pagamentoAtual.valor || 400
+        )
+      : 400;
+
+
+  const w =
+    $('#modalWrap');
+
+
+  w.className =
+    'modal-backdrop';
+
+
+  w.innerHTML = `
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <h3>
+          💰 Financeiro
+        </h3>
+
+        <button
+          type="button"
+          class="close"
+          id="closeModal">
+          ×
+        </button>
+
+      </div>
+
+
+      <div class="card">
+
+        <h3 style="margin-top:0;">
+          👨‍🌾 ${esc(produtor.nome)}
+        </h3>
+
+        <div
+          class="meta"
+          style="margin-top:8px;">
+
+          ${
+            nomesMeses[mesAtual]
+          }/${anoAtual}
+
+        </div>
+
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            margin-top:14px;
+          ">
+
+          <strong
+            style="font-size:24px;">
+
+            ${dinheiro(valorAtual)}
+
+          </strong>
+
+
+          <span
+            style="
+              padding:7px 11px;
+              border-radius:20px;
+              font-weight:800;
+              background:${fundo};
+              color:${cor};
+            ">
+
+            ${statusTexto}
+
+          </span>
+
+        </div>
+
+
+        <div
+          class="meta"
+          style="margin-top:12px;">
+
+          ${
+            pagamentoAtual
+              ? `
+                Pago em:
+                ${
+                  dateBR(
+                    pagamentoAtual
+                      .data_pagamento
+                  )
+                }
+              `
+              : `
+                Vencimento:
+                28/${String(
+                  mesAtual
+                ).padStart(2,'0')}/${anoAtual}
+              `
+          }
+
+        </div>
+
+
+        ${
+          !pagamentoAtual
+            ? `
+              <button
+                type="button"
+                class="btn btn-primary btn-block"
+                id="registrarPagamentoFinanceiro"
+                style="margin-top:18px;">
+
+                💰 REGISTRAR PAGAMENTO
+
+              </button>
+            `
+            : ''
+        }
+
+      </div>
+
+
+      <h3 style="margin-top:22px;">
+        🧾 Histórico de pagamentos
+      </h3>
+
+
+      <div>
+
+        ${
+          pagamentos.length
+            ? pagamentos.map(p=>`
+
+                <div class="card">
+
+                  <div class="card-row">
+
+                    <div>
+
+                      <strong>
+
+                        ${
+                          nomesMeses[
+                            Number(
+                              p.competencia_mes
+                            )
+                          ] ||
+                          'Mês'
+                        }/${p.competencia_ano || ''}
+
+                      </strong>
+
+                      <div
+                        class="meta"
+                        style="margin-top:5px;">
+
+                        ${
+                          p.data_pagamento
+                            ? 'Pago em ' +
+                              dateBR(
+                                p.data_pagamento
+                              )
+                            : ''
+                        }
+
+                      </div>
+
+                      ${
+                        p.forma_pagamento
+                          ? `
+                            <div class="meta">
+                              ${esc(
+                                String(
+                                  p.forma_pagamento
+                                ).toUpperCase()
+                              )}
+                            </div>
+                          `
+                          : ''
+                      }
+
+                      ${
+                        p.numero_recibo
+                          ? `
+                            <div class="meta">
+                              Recibo:
+                              ${esc(
+                                p.numero_recibo
+                              )}
+                            </div>
+                          `
+                          : ''
+                      }
+
+                    </div>
+
+
+                    <div
+                      style="text-align:right;">
+
+                      <strong>
+                        ${dinheiro(
+                          p.valor
+                        )}
+                      </strong>
+
+                      <div
+                        style="
+                          margin-top:6px;
+                          color:#287147;
+                          font-weight:800;
+                          font-size:12px;
+                        ">
+
+                        ✅ PAGO
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              `).join('')
+            : `
+                <div class="empty">
+                  Nenhum pagamento registrado ainda.
+                </div>
+              `
+        }
+
+      </div>
+
+    </div>
+  `;
+
+
+  $('#closeModal').onclick =
+    closeModal;
+
+
+  const btnPagamento =
+    $('#registrarPagamentoFinanceiro');
+
+
+  if(btnPagamento){
+
+    btnPagamento.onclick=()=>{
+
+      closeModal();
+
+      abrirPagamentoProdutor(
+        produtorId
+      );
+
+    };
+  }
+}
 
 async function abrirPagamentoProdutor(produtorId){
 
@@ -13816,7 +14213,19 @@ if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id);
  const g=e.target.closest('[data-go]');if(g)go(g.dataset.go);
  const o=e.target.closest('[data-open]');if(o)openForm(o.dataset.open);
  const a=e.target.closest('[data-action]');if(a)openForm(a.dataset.action,a.dataset.sid);
- const ep=e.target.closest('[data-edit-produtor]');if(ep)return viewProdutor(ep.dataset.editProdutor);
+ const fp =
+  e.target.closest(
+    '[data-financeiro-produtor]'
+  );
+
+if(fp){
+
+  return abrirFinanceiroProdutorTecnico(
+    fp.dataset.financeiroProdutor
+  );
+
+}
+const ep=e.target.closest('[data-edit-produtor]');if(ep)return viewProdutor(ep.dataset.editProdutor);
  const epr=e.target.closest('[data-edit-propriedade]');
 
 if(epr){
