@@ -17263,7 +17263,814 @@ function abrirAtividadesProdutorTG(
 
 }
 
+function abrirCalendarioManejosTG(
+  ano=null,
+  mes=null,
+  produtorFiltro=''
+){
 
+  const agora=new Date();
+
+  if(ano===null){
+    ano=agora.getFullYear();
+  }
+
+  if(mes===null){
+    mes=agora.getMonth();
+  }
+
+
+  const meses=[
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro'
+  ];
+
+
+  const atividades=
+    listaAtividadesTG();
+
+
+  const produtorLogado=
+    isProdutor();
+
+
+  function atividadesFiltradas(){
+
+    if(produtorLogado){
+
+      return atividades;
+
+    }
+
+
+    if(!produtorFiltro){
+
+      return atividades;
+
+    }
+
+
+    return atividades.filter(a=>{
+
+      const ctx=
+        contextoSafra(
+          a.safra_id
+        );
+
+      return (
+        String(
+          ctx.produtor?.id
+        )===
+        String(produtorFiltro)
+      );
+
+    });
+
+  }
+
+
+  const lista=
+    atividadesFiltradas();
+
+
+  const primeiroDia=
+    new Date(
+      ano,
+      mes,
+      1
+    );
+
+
+  const ultimoDia=
+    new Date(
+      ano,
+      mes+1,
+      0
+    );
+
+
+  const totalDias=
+    ultimoDia.getDate();
+
+
+  // calendário começa na segunda-feira
+  const espacosInicio=
+    (
+      primeiroDia.getDay()+6
+    )%7;
+
+
+  function isoDia(dia){
+
+    return [
+      ano,
+      String(
+        mes+1
+      ).padStart(2,'0'),
+      String(
+        dia
+      ).padStart(2,'0')
+    ].join('-');
+
+  }
+
+
+  function atividadesDoDia(dia){
+
+    const data=
+      isoDia(dia);
+
+    return lista.filter(
+      a=>
+        String(
+          a.data_aplicacao||''
+        )===data
+    );
+
+  }
+
+
+  function marcadoresDia(dia){
+
+    const itens=
+      atividadesDoDia(dia);
+
+
+    const temAdubacao=
+      itens.some(
+        a=>
+          a.origem===
+          'adubacao'
+      );
+
+
+    const temBorrifacao=
+      itens.some(
+        a=>
+          a.origem===
+          'aplicacao'
+      );
+
+
+    let html='';
+
+
+    if(temAdubacao){
+      html+='🌱';
+    }
+
+
+    if(temBorrifacao){
+      html+='💦';
+    }
+
+
+    return html;
+
+  }
+
+
+  let diasHTML='';
+
+
+  for(
+    let i=0;
+    i<espacosInicio;
+    i++
+  ){
+
+    diasHTML+=`
+      <div></div>
+    `;
+
+  }
+
+
+  for(
+    let dia=1;
+    dia<=totalDias;
+    dia++
+  ){
+
+    const itens=
+      atividadesDoDia(dia);
+
+
+    const data=
+      isoDia(dia);
+
+
+    const hoje=
+      hojeLocalISO();
+
+
+    const ehHoje=
+      data===hoje;
+
+
+    diasHTML+=`
+
+      <button
+        type="button"
+        class="calendario-dia"
+        data-calendario-dia="${data}"
+        style="
+          border:
+            ${
+              ehHoje
+                ?'2px solid #315943'
+                :'1px solid #dfe5e1'
+            };
+          background:
+            ${
+              itens.length
+                ?'#fffaf0'
+                :'#fff'
+            };
+          border-radius:12px;
+          min-height:68px;
+          padding:7px 4px;
+          cursor:pointer;
+          text-align:center;
+        ">
+
+        <strong
+          style="
+            display:block;
+            font-size:14px;
+          ">
+
+          ${dia}
+
+        </strong>
+
+
+        <div
+          style="
+            min-height:24px;
+            margin-top:5px;
+            font-size:16px;
+          ">
+
+          ${marcadoresDia(dia)}
+
+        </div>
+
+
+        ${
+          itens.length>1
+            ?`
+              <div
+                class="meta"
+                style="
+                  font-size:9px;
+                  margin-top:1px;
+                ">
+
+                ${itens.length} manejos
+
+              </div>
+            `
+            :''
+        }
+
+      </button>
+
+    `;
+
+  }
+
+
+  const seletorProdutor=
+    produtorLogado
+      ?''
+      :`
+
+        <div
+          class="field"
+          style="
+            margin-bottom:16px;
+          ">
+
+          <label>
+            👨‍🌾 Produtor
+          </label>
+
+          <select
+            id="calendarioProdutorFiltro">
+
+            <option value="">
+              Todos os produtores
+            </option>
+
+            ${
+              [...(state.produtores||[])]
+                .sort((a,b)=>
+                  String(a.nome||'')
+                    .localeCompare(
+                      String(b.nome||''),
+                      'pt-BR'
+                    )
+                )
+                .map(p=>`
+
+                  <option
+                    value="${esc(p.id)}"
+                    ${
+                      String(
+                        produtorFiltro
+                      )===
+                      String(p.id)
+                        ?'selected'
+                        :''
+                    }>
+
+                    ${esc(
+                      p.nome||
+                      'Produtor'
+                    )}
+
+                  </option>
+
+                `)
+                .join('')
+            }
+
+          </select>
+
+        </div>
+
+      `;
+
+
+  const w=
+    $('#modalWrap');
+
+
+  w.className=
+    'modal-backdrop';
+
+
+  w.innerHTML=`
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <div>
+
+          <h3 style="margin:0;">
+
+            📅
+            ${
+              produtorLogado
+                ?'Meu calendário'
+                :'Calendário de manejos'
+            }
+
+          </h3>
+
+          <div
+            class="meta"
+            style="margin-top:4px;">
+
+            🌱 Adubação
+            &nbsp;&nbsp;
+            💦 Borrifação
+
+          </div>
+
+        </div>
+
+
+        <button
+          class="close"
+          id="closeModal">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      ${seletorProdutor}
+
+
+      <div
+        style="
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          margin-bottom:15px;
+        ">
+
+        <button
+          type="button"
+          class="btn"
+          id="calendarioMesAnterior"
+          style="
+            padding:10px 14px;
+          ">
+
+          ‹
+
+        </button>
+
+
+        <div
+          style="
+            text-align:center;
+          ">
+
+          <strong
+            style="
+              font-size:18px;
+            ">
+
+            ${meses[mes]}
+            ${ano}
+
+          </strong>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="btn"
+          id="calendarioMesProximo"
+          style="
+            padding:10px 14px;
+          ">
+
+          ›
+
+        </button>
+
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:
+            repeat(7,1fr);
+          gap:5px;
+          text-align:center;
+          margin-bottom:6px;
+        ">
+
+        ${
+          [
+            'Seg',
+            'Ter',
+            'Qua',
+            'Qui',
+            'Sex',
+            'Sáb',
+            'Dom'
+          ]
+          .map(d=>`
+
+            <div
+              class="meta"
+              style="
+                font-size:10px;
+                font-weight:800;
+              ">
+
+              ${d}
+
+            </div>
+
+          `)
+          .join('')
+        }
+
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:
+            repeat(7,1fr);
+          gap:5px;
+        ">
+
+        ${diasHTML}
+
+      </div>
+
+
+      <div
+        id="calendarioDetalhesDia"
+        style="
+          margin-top:22px;
+        ">
+
+        <div class="empty">
+
+          Toque em um dia para
+          visualizar os manejos.
+
+        </div>
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  $('#closeModal').onclick=
+    closeModal;
+
+
+  const filtro=
+    $('#calendarioProdutorFiltro');
+
+
+  if(filtro){
+
+    filtro.onchange=()=>{
+
+      abrirCalendarioManejosTG(
+        ano,
+        mes,
+        filtro.value
+      );
+
+    };
+
+  }
+
+
+  $('#calendarioMesAnterior')
+    .onclick=()=>{
+
+      const d=
+        new Date(
+          ano,
+          mes-1,
+          1
+        );
+
+      abrirCalendarioManejosTG(
+        d.getFullYear(),
+        d.getMonth(),
+        produtorFiltro
+      );
+
+    };
+
+
+  $('#calendarioMesProximo')
+    .onclick=()=>{
+
+      const d=
+        new Date(
+          ano,
+          mes+1,
+          1
+        );
+
+      abrirCalendarioManejosTG(
+        d.getFullYear(),
+        d.getMonth(),
+        produtorFiltro
+      );
+
+    };
+
+
+  w.querySelectorAll(
+    '[data-calendario-dia]'
+  )
+  .forEach(btn=>{
+
+    btn.onclick=()=>{
+
+      const data=
+        btn.dataset.calendarioDia;
+
+
+      const itens=
+        lista
+          .filter(
+            a=>
+              String(
+                a.data_aplicacao||''
+              )===data
+          );
+
+
+      const detalhe=
+        $('#calendarioDetalhesDia');
+
+
+      if(!itens.length){
+
+        detalhe.innerHTML=`
+
+          <div class="empty">
+
+            Nenhum manejo em
+            ${dateBR(data)}.
+
+          </div>
+
+        `;
+
+        return;
+
+      }
+
+
+      detalhe.innerHTML=`
+
+        <div class="section-head">
+
+          <h3>
+            📅 ${dateBR(data)}
+          </h3>
+
+        </div>
+
+
+        ${itens.map(a=>{
+
+          const ctx=
+            contextoSafra(
+              a.safra_id
+            );
+
+
+          const status=
+            statusManejoTG(a);
+
+
+          let statusTexto=
+            'Programada';
+
+
+          if(status==='hoje'){
+            statusTexto='Hoje';
+          }
+
+
+          if(status==='atrasado'){
+            statusTexto='Atrasada';
+          }
+
+
+          if(status==='realizado'){
+            statusTexto='Realizada';
+          }
+
+
+          return `
+
+            <div class="card">
+
+              <div class="card-row">
+
+                <div>
+
+                  <h4
+                    style="margin:0 0 6px;">
+
+                    ${
+                      a.origem===
+                      'adubacao'
+                        ?'🌱 Adubação'
+                        :'💦 Borrifação'
+                    }
+
+                  </h4>
+
+
+                  ${
+                    !produtorLogado
+                      ?`
+                        <div class="meta">
+
+                          👨‍🌾
+                          ${esc(
+                            ctx.produtor
+                              ?.nome ||
+                            'Produtor'
+                          )}
+
+                        </div>
+                      `
+                      :''
+                  }
+
+
+                  <div class="meta">
+
+                    🌾
+                    ${esc(
+                      ctx.safra
+                        ?.cultura ||
+                      'Lavoura'
+                    )}
+
+                    ${
+                      ctx.safra
+                        ?.variedade
+                        ?' • '+
+                         esc(
+                           ctx.safra
+                             .variedade
+                         )
+                        :''
+                    }
+
+                  </div>
+
+
+                  <div class="meta">
+
+                    🏡
+                    ${esc(
+                      ctx.propriedade
+                        ?.nome ||
+                      'Propriedade'
+                    )}
+
+                    ${
+                      ctx.talhao?.nome
+                        ?' • '+
+                         esc(
+                           ctx.talhao
+                             .nome
+                         )
+                        :''
+                    }
+
+                  </div>
+
+
+                  <div
+                    class="meta"
+                    style="
+                      margin-top:8px;
+                      font-weight:700;
+                    ">
+
+                    ${esc(
+                      descricaoProdutosAtividadeTG(
+                        a
+                      )
+                    )}
+
+                  </div>
+
+                </div>
+
+
+                <span
+                  class="pill ${
+                    status==='atrasado'
+                      ?'red'
+                      :status==='realizado'
+                        ?''
+                        :'gold'
+                  }">
+
+                  ${statusTexto}
+
+                </span>
+
+              </div>
+
+            </div>
+
+          `;
+
+        }).join('')}
+
+      `;
+
+    };
+
+  });
+
+}
 
 function renderAtividadesTG(){
 
@@ -18348,8 +19155,6 @@ document.addEventListener('click',e=>{
       'adubacao'
     );
   }
-
-
   const novaPulv=
     e.target.closest(
       '#novaAtividadePulverizacao'
@@ -18360,6 +19165,16 @@ document.addEventListener('click',e=>{
       'aplicacao'
     );
   }
+  const calendario=
+  e.target.closest(
+    '[data-calendario-manejos]'
+  );
+
+if(calendario){
+
+  return abrirCalendarioManejosTG();
+
+}
  const rm=e.target.closest('[data-realizar-manejo]');
 if(rm)return realizarManejo(rm.dataset.origem,rm.dataset.id); 
 const rel=
