@@ -2828,7 +2828,471 @@ atualizarResumoProducaoProdutor(
   select.value
 );
 }
+function montarRelatorioAtividadesTecnico(
+  produtorId='',
+  dataInicial='',
+  dataFinal=''
+){
 
+  const atividades=[];
+
+
+  state.adubacoes.forEach(a=>{
+
+    atividades.push({
+      ...a,
+      origem:'adubacao',
+      nomeAtividade:'Adubação',
+      icone:'🌱'
+    });
+
+  });
+
+
+  state.aplicacoes.forEach(a=>{
+
+    atividades.push({
+      ...a,
+      origem:'aplicacao',
+      nomeAtividade:'Borrifação',
+      icone:'💦'
+    });
+
+  });
+
+
+  // =========================
+  // FILTROS
+  // =========================
+
+  const filtradas=
+    atividades.filter(a=>{
+
+      const ctx=
+        contextoSafra(
+          a.safra_id
+        );
+
+      if(
+        produtorId &&
+        String(ctx.produtor?.id)!==
+        String(produtorId)
+      ){
+        return false;
+      }
+
+
+      const data=
+        a.data_aplicacao || '';
+
+
+      if(
+        dataInicial &&
+        data<dataInicial
+      ){
+        return false;
+      }
+
+
+      if(
+        dataFinal &&
+        data>dataFinal
+      ){
+        return false;
+      }
+
+
+      return true;
+
+    })
+    .sort((a,b)=>
+      (b.data_aplicacao||'')
+        .localeCompare(
+          a.data_aplicacao||''
+        )
+    );
+
+
+  // =========================
+  // CONTADORES
+  // =========================
+
+  const realizadas=
+    filtradas.filter(
+      a=>
+        statusManejoTG(a)==='realizado'
+    ).length;
+
+
+  const atrasadas=
+    filtradas.filter(
+      a=>
+        statusManejoTG(a)==='atrasado'
+    ).length;
+
+
+  const hoje=
+    filtradas.filter(
+      a=>
+        statusManejoTG(a)==='hoje'
+    ).length;
+
+
+  const programadas=
+    filtradas.filter(
+      a=>
+        statusManejoTG(a)==='programado'
+    ).length;
+
+
+  // =========================
+  // PRODUTOS
+  // =========================
+
+  function produtosHTML(a){
+
+    const bruto=
+      a.origem==='adubacao'
+        ?a.produto
+        :a.produto_comercial;
+
+
+    try{
+
+      const itens=
+        JSON.parse(bruto||'');
+
+      if(Array.isArray(itens)){
+
+        const validos=
+          itens.filter(
+            i=>
+              i.produto &&
+              String(i.produto)
+                .toLowerCase()!==
+              'nenhum'
+          );
+
+        if(validos.length){
+
+          return validos.map(i=>`
+
+            <div class="meta">
+
+              • ${
+                i.categoria
+                  ?`<strong>
+                      ${esc(i.categoria)}:
+                    </strong> `
+                  :''
+              }
+
+              ${esc(i.produto)}
+
+              ${
+                i.dose!==undefined &&
+                i.dose!==''
+                  ?` — ${esc(i.dose)}
+                     ${esc(
+                       i.unidade ||
+                       i.unidade_dose ||
+                       ''
+                     )}`
+                  :''
+              }
+
+            </div>
+
+          `).join('');
+
+        }
+
+      }
+
+    }catch(_){}
+
+
+    const produto=
+      a.origem==='adubacao'
+        ?a.produto
+        :(
+          a.produto_comercial ||
+          a.finalidade
+        );
+
+
+    return produto
+      ?`
+        <div class="meta">
+          • ${esc(produto)}
+          ${
+            a.dose!==undefined &&
+            a.dose!==''
+              ?` — ${esc(a.dose)}
+                 ${esc(a.unidade_dose||'')}`
+              :''
+          }
+        </div>
+      `
+      :'';
+
+  }
+
+
+  // =========================
+  // SEM RESULTADOS
+  // =========================
+
+  if(!filtradas.length){
+
+    return `
+
+      <div class="empty">
+
+        Nenhuma atividade encontrada
+        para os filtros selecionados.
+
+      </div>
+
+    `;
+
+  }
+
+
+  // =========================
+  // RESULTADO
+  // =========================
+
+  return `
+
+    <h3>
+      📋 Resumo
+    </h3>
+
+
+    <div
+      style="
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:10px;
+      ">
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          Total
+        </div>
+
+        <h3>
+          ${filtradas.length}
+        </h3>
+
+      </div>
+
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          ✅ Realizadas
+        </div>
+
+        <h3>
+          ${realizadas}
+        </h3>
+
+      </div>
+
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          🔴 Atrasadas
+        </div>
+
+        <h3>
+          ${atrasadas}
+        </h3>
+
+      </div>
+
+
+      <div class="card" style="margin:0">
+
+        <div class="meta">
+          📅 Programadas
+        </div>
+
+        <h3>
+          ${programadas + hoje}
+        </h3>
+
+      </div>
+
+    </div>
+
+
+    <h3 style="margin-top:24px;">
+      Histórico de atividades
+    </h3>
+
+
+    ${filtradas.map(a=>{
+
+      const ctx=
+        contextoSafra(
+          a.safra_id
+        );
+
+
+      const status=
+        statusManejoTG(a);
+
+
+      let textoStatus=
+        'Programada';
+
+      let fundo=
+        '#f5f0dc';
+
+
+      if(status==='hoje'){
+        textoStatus='Hoje';
+      }
+
+
+      if(status==='atrasado'){
+        textoStatus='Atrasada';
+        fundo='#fdeaea';
+      }
+
+
+      if(status==='realizado'){
+        textoStatus='Realizada';
+        fundo='#edf5ef';
+      }
+
+
+      return `
+
+        <div class="card">
+
+          <div class="card-row">
+
+            <div>
+
+              <h4>
+                ${a.icone}
+                ${esc(a.nomeAtividade)}
+              </h4>
+
+              <div class="meta">
+                👨‍🌾
+                ${esc(
+                  ctx.produtor?.nome ||
+                  'Produtor'
+                )}
+              </div>
+
+              <div class="meta">
+                🌾
+                ${esc(
+                  ctx.safra?.cultura ||
+                  'Lavoura'
+                )}
+
+                ${
+                  ctx.safra?.variedade
+                    ?' • '+
+                     esc(
+                       ctx.safra.variedade
+                     )
+                    :''
+                }
+              </div>
+
+              <div class="meta">
+
+                🏡
+                ${esc(
+                  ctx.propriedade?.nome ||
+                  'Propriedade'
+                )}
+
+                ${
+                  ctx.talhao?.nome
+                    ?' • '+
+                     esc(ctx.talhao.nome)
+                    :''
+                }
+
+              </div>
+
+            </div>
+
+
+            <span
+              style="
+                padding:7px 10px;
+                border-radius:20px;
+                font-size:12px;
+                font-weight:800;
+                background:${fundo};
+                white-space:nowrap;
+              ">
+
+              ${textoStatus}
+
+            </span>
+
+          </div>
+
+
+          <div
+            style="
+              margin-top:12px;
+              padding-top:12px;
+              border-top:1px solid #ddd;
+            ">
+
+            ${produtosHTML(a)}
+
+          </div>
+
+
+          ${
+            a.observacoes
+              ?`
+                <div
+                  class="meta"
+                  style="margin-top:10px;">
+
+                  📝 ${esc(a.observacoes)}
+
+                </div>
+              `
+              :''
+          }
+
+
+          <div
+            class="meta"
+            style="margin-top:10px;">
+
+            📅 ${dateBR(
+              a.data_aplicacao
+            )}
+
+          </div>
+
+        </div>
+
+      `;
+
+    }).join('')}
+
+  `;
+
+}
 function abrirRelatorioTecnico(tipo){
 
   const nomes={
@@ -2982,13 +3446,58 @@ function abrirRelatorioTecnico(tipo){
     closeModal;
 
 
-  $('#visualizarRelatorio').onclick=()=>{
+ $('#visualizarRelatorio').onclick=()=>{
+
+  const produtorId=
+    $('#relatorioProdutor')?.value || '';
+
+  const dataInicial=
+    $('#relatorioDataInicial')?.value || '';
+
+  const dataFinal=
+    $('#relatorioDataFinal')?.value || '';
+
+  const resultado=
+    $('#resultadoRelatorio');
+
+
+  if(
+    dataInicial &&
+    dataFinal &&
+    dataInicial>dataFinal
+  ){
 
     toast(
-      'Relatório selecionado. Vamos montar os dados agora.'
+      'A data inicial não pode ser maior que a final'
     );
 
-  };
+    return;
+
+  }
+
+
+  if(tipo==='atividades'){
+
+    resultado.innerHTML=
+      montarRelatorioAtividadesTecnico(
+        produtorId,
+        dataInicial,
+        dataFinal
+      );
+
+    return;
+
+  }
+
+
+  resultado.innerHTML=`
+    <div class="empty">
+      Este relatório será configurado
+      na próxima etapa.
+    </div>
+  `;
+
+};
 
 
   $('#gerarPdfRelatorio').onclick=()=>{
