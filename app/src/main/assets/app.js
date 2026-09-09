@@ -10690,75 +10690,160 @@ if(btnNovaLavoura){
 
   // EXCLUIR
 
-  const excluirBtn=
-    $('#excluirPropriedadeFicha');
+  const excluirBtn =
+  $('#excluirPropriedadeFicha');
 
+if(excluirBtn){
 
-  if(excluirBtn){
+  excluirBtn.onclick=async()=>{
 
-    excluirBtn.onclick=async()=>{
-
-
-      if(talhoes.length){
-
-        toast(
-          'Exclua primeiro os talhões desta propriedade'
-        );
-
-        return;
-      }
-
-
-      if(
-        !confirm(
-          `Excluir definitivamente ${p.nome||'esta propriedade'}?`
+    const idsLavouras =
+      new Set(
+        lavouras.map(
+          s=>String(s.id)
         )
-      )return;
+      );
+
+    const adubacoes =
+      state.adubacoes.filter(
+        a=>idsLavouras.has(
+          String(a.safra_id)
+        )
+      );
+
+    const aplicacoes =
+      state.aplicacoes.filter(
+        a=>idsLavouras.has(
+          String(a.safra_id)
+        )
+      );
+
+    const colheitas =
+      state.colheitas.filter(
+        c=>idsLavouras.has(
+          String(c.safra_id)
+        )
+      );
 
 
-      try{
+    const confirmar =
+      confirm(
+        `Excluir definitivamente ${p.nome || 'esta propriedade'}?\n\n` +
+        `Isso excluirá também:\n` +
+        `• ${talhoes.length} talhão(ões)\n` +
+        `• ${lavouras.length} lavoura(s)\n` +
+        `• ${adubacoes.length} adubação(ões)\n` +
+        `• ${aplicacoes.length} aplicação(ões)\n` +
+        `• ${colheitas.length} registro(s) de produção\n\n` +
+        `Essa ação não pode ser desfeita.`
+      );
 
-        excluirBtn.disabled=true;
+    if(!confirmar) return;
 
-        excluirBtn.textContent=
-          'Excluindo...';
 
+    try{
+
+      excluirBtn.disabled=true;
+
+      excluirBtn.textContent=
+        'Excluindo propriedade...';
+
+
+      // PRODUÇÕES
+      for(const c of colheitas){
 
         await deleteRow(
-          'propriedades',
-          id
+          'colheitas',
+          c.id
         );
 
-
-        closeModal();
-
-        await loadAll();
-
-
-        toast(
-          'Propriedade excluída'
-        );
-
-
-      }catch(err){
-
-        console.error(err);
-
-
-        excluirBtn.disabled=false;
-
-        excluirBtn.textContent=
-          '🗑️ EXCLUIR PROPRIEDADE';
-
-
-        toast(
-          'Não foi possível excluir a propriedade'
-        );
       }
-    };
-  }
-}
 
+
+      // ADUBAÇÕES
+      for(const a of adubacoes){
+
+        await deleteRow(
+          'adubacoes',
+          a.id
+        );
+
+      }
+
+
+      // BORRIFAÇÕES / APLICAÇÕES
+      for(const a of aplicacoes){
+
+        await deleteRow(
+          'aplicacoes',
+          a.id
+        );
+
+      }
+
+
+      // LAVOURAS
+      for(const s of lavouras){
+
+        await deleteRow(
+          'safras',
+          s.id
+        );
+
+      }
+
+
+      // TALHÕES
+      for(const t of talhoes){
+
+        await deleteRow(
+          'talhoes',
+          t.id
+        );
+
+      }
+
+
+      // PROPRIEDADE
+      await deleteRow(
+        'propriedades',
+        id
+      );
+
+
+      closeModal();
+
+      await loadAll();
+
+
+      toast(
+        '✓ Propriedade completa excluída'
+      );
+
+
+    }catch(err){
+
+      console.error(
+        'Erro ao excluir propriedade completa:',
+        err
+      );
+
+      excluirBtn.disabled=false;
+
+      excluirBtn.textContent=
+        '🗑️ EXCLUIR PROPRIEDADE';
+
+
+      toast(
+        'Não foi possível excluir toda a propriedade'
+      );
+
+    }
+
+  };
+
+}
+  
 function editPropriedade(id){
 
   const p=state.propriedades.find(
