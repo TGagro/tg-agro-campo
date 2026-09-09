@@ -583,9 +583,33 @@ function hojeLocalISO(){
 }
 
 function statusManejoTG(item){
-  const status=String(
-    item?.status||''
-  ).toLowerCase();
+
+  const hoje=
+    hojeLocalISO();
+
+  const data=
+    item?.data_aplicacao || '';
+
+  const status=
+    String(
+      item?.status || ''
+    ).toLowerCase();
+
+
+  // Se a atividade está marcada como realizada,
+  // mas a data dela ainda é futura,
+  // considera como programada.
+  if(
+    (
+      status==='realizado' ||
+      status==='realizada'
+    ) &&
+    data &&
+    data>hoje
+  ){
+    return 'programado';
+  }
+
 
   if(
     status==='realizado' ||
@@ -594,22 +618,24 @@ function statusManejoTG(item){
     return 'realizado';
   }
 
-  const hoje=hojeLocalISO();
-  const data=item?.data_aplicacao||'';
 
   if(!data){
     return 'programado';
   }
 
+
   if(data<hoje){
     return 'atrasado';
   }
+
 
   if(data===hoje){
     return 'hoje';
   }
 
+
   return 'programado';
+
 }
 
 function contextoSafra(safraId){
@@ -16510,18 +16536,750 @@ async function salvarNovoProdutorComAcesso(event){
 
 }
 
+function listaAtividadesTG(){
+
+  const atividades=[];
+
+  (state.adubacoes||[]).forEach(a=>{
+
+    atividades.push({
+      ...a,
+      origem:'adubacao',
+      nomeAtividade:'Adubação',
+      icone:'🌱'
+    });
+
+  });
+
+  (state.aplicacoes||[]).forEach(a=>{
+
+    atividades.push({
+      ...a,
+      origem:'aplicacao',
+      nomeAtividade:'Borrifação',
+      icone:'💦'
+    });
+
+  });
+
+  return atividades;
+
+}
+
+
+function descricaoProdutosAtividadeTG(a){
+
+  try{
+
+    const bruto=
+      a.origem==='adubacao'
+        ?a.produto
+        :a.produto_comercial;
+
+
+    const itens=
+      JSON.parse(bruto||'');
+
+
+    if(Array.isArray(itens)){
+
+      const nomes=
+        itens
+          .filter(i=>
+            i.produto &&
+            String(i.produto)
+              .toLowerCase()!==
+            'nenhum'
+          )
+          .map(i=>{
+
+            let txt=
+              i.produto;
+
+            if(
+              i.dose!==undefined &&
+              i.dose!==''
+            ){
+
+              txt+=
+                ` — ${i.dose}`;
+
+            }
+
+            if(
+              i.unidade ||
+              i.unidade_dose
+            ){
+
+              txt+=
+                ` ${
+                  i.unidade ||
+                  i.unidade_dose
+                }`;
+
+            }
+
+            return txt;
+
+          });
+
+
+      if(nomes.length){
+
+        return nomes.join(' + ');
+
+      }
+
+    }
+
+  }catch(_){}
+
+
+  if(a.origem==='adubacao'){
+
+    return (
+      a.produto ||
+      'Adubação'
+    );
+
+  }
+
+
+  return (
+    a.produto_comercial ||
+    a.finalidade ||
+    'Borrifação'
+  );
+
+}
+
+
+
+function cardAtividadeProdutorTG(a){
+
+  const ctx=
+    contextoSafra(
+      a.safra_id
+    );
+
+
+  const status=
+    statusManejoTG(a);
+
+
+  let textoStatus=
+    'Programada';
+
+  let classe=
+    'gold';
+
+
+  if(status==='hoje'){
+
+    textoStatus='Hoje';
+
+  }
+
+
+  if(status==='atrasado'){
+
+    textoStatus='Atrasada';
+    classe='red';
+
+  }
+
+
+  if(status==='realizado'){
+
+    textoStatus='Realizada';
+    classe='';
+
+  }
+
+
+  return `
+
+    <div class="card">
+
+      <div class="card-row">
+
+        <div>
+
+          <h4 style="margin:0 0 7px;">
+
+            ${a.icone}
+            ${esc(a.nomeAtividade)}
+
+          </h4>
+
+
+          <div class="meta">
+
+            🌾
+            ${esc(
+              ctx.safra?.cultura ||
+              'Lavoura'
+            )}
+
+            ${
+              ctx.safra?.variedade
+                ?' • '+
+                 esc(
+                   ctx.safra.variedade
+                 )
+                :''
+            }
+
+          </div>
+
+
+          <div class="meta">
+
+            🏡
+            ${esc(
+              ctx.propriedade?.nome ||
+              'Propriedade'
+            )}
+
+          </div>
+
+
+          <div class="meta">
+
+            🌱
+            ${esc(
+              ctx.talhao?.nome ||
+              'Talhão'
+            )}
+
+          </div>
+
+        </div>
+
+
+        <span
+          class="pill ${classe}">
+
+          ${textoStatus}
+
+        </span>
+
+      </div>
+
+
+      <div
+        class="meta"
+        style="
+          margin-top:12px;
+          padding-top:12px;
+          border-top:1px solid #ddd;
+        ">
+
+        <strong>
+
+          ${esc(
+            descricaoProdutosAtividadeTG(a)
+          )}
+
+        </strong>
+
+      </div>
+
+
+      ${
+        a.alvo
+          ?`
+            <div class="meta">
+              Alvo:
+              ${esc(a.alvo)}
+            </div>
+          `
+          :''
+      }
+
+
+      <div
+        class="meta"
+        style="margin-top:7px;">
+
+        📅
+        ${dateBR(
+          a.data_aplicacao
+        )}
+
+      </div>
+
+
+      <div
+        style="
+          display:flex;
+          gap:8px;
+          margin-top:12px;
+          flex-wrap:wrap;
+        ">
+
+
+        <button
+          type="button"
+          class="btn abrir-atividade-produtor"
+          data-origem="${esc(a.origem)}"
+          data-sid="${esc(a.safra_id)}">
+
+          ✏️ Abrir / editar
+
+        </button>
+
+
+        ${
+          status!=='realizado'
+            ?`
+
+              <button
+                type="button"
+                class="
+                  btn
+                  btn-gold
+                  realizar-atividade-produtor
+                "
+                data-origem="${esc(a.origem)}"
+                data-id="${esc(a.id)}">
+
+                ✓ Realizada
+
+              </button>
+
+            `
+            :''
+        }
+
+      </div>
+
+    </div>
+
+  `;
+
+}
+
+
+
+function abrirAtividadesProdutorTG(
+  produtorId
+){
+
+  const produtor=
+    (state.produtores||[])
+      .find(p=>
+        String(p.id)===
+        String(produtorId)
+      );
+
+
+  if(!produtor){
+
+    toast(
+      'Produtor não encontrado'
+    );
+
+    return;
+
+  }
+
+
+  const atividades=
+    listaAtividadesTG()
+      .filter(a=>{
+
+        const ctx=
+          contextoSafra(
+            a.safra_id
+          );
+
+        return (
+          String(
+            ctx.produtor?.id
+          )===
+          String(produtorId)
+        );
+
+      });
+
+
+  const ordem={
+    atrasado:0,
+    hoje:1,
+    programado:2
+  };
+
+
+  const pendentes=
+    atividades
+      .filter(
+        a=>
+          statusManejoTG(a)!==
+          'realizado'
+      )
+      .sort((a,b)=>{
+
+        const sa=
+          statusManejoTG(a);
+
+        const sb=
+          statusManejoTG(b);
+
+        const oa=
+          ordem[sa]??9;
+
+        const ob=
+          ordem[sb]??9;
+
+        if(oa!==ob){
+
+          return oa-ob;
+
+        }
+
+        return String(
+          a.data_aplicacao||''
+        ).localeCompare(
+          String(
+            b.data_aplicacao||''
+          )
+        );
+
+      });
+
+
+  const realizadas=
+    atividades
+      .filter(
+        a=>
+          statusManejoTG(a)===
+          'realizado'
+      )
+      .sort((a,b)=>{
+
+        const da=
+          a.data_realizacao ||
+          a.data_aplicacao ||
+          '';
+
+        const db=
+          b.data_realizacao ||
+          b.data_aplicacao ||
+          '';
+
+        return db.localeCompare(da);
+
+      });
+
+
+  const atrasadas=
+    pendentes.filter(
+      a=>
+        statusManejoTG(a)===
+        'atrasado'
+    ).length;
+
+
+  const hoje=
+    pendentes.filter(
+      a=>
+        statusManejoTG(a)===
+        'hoje'
+    ).length;
+
+
+  const w=
+    $('#modalWrap');
+
+  w.className=
+    'modal-backdrop';
+
+
+  w.innerHTML=`
+
+    <div class="modal">
+
+      <div class="modal-head">
+
+        <div>
+
+          <h3 style="margin:0;">
+
+            👨‍🌾
+            ${esc(
+              produtor.nome ||
+              'Produtor'
+            )}
+
+          </h3>
+
+          <div
+            class="meta"
+            style="margin-top:4px;">
+
+            Atividades do produtor
+
+          </div>
+
+        </div>
+
+
+        <button
+          class="close"
+          id="closeModal">
+
+          ×
+
+        </button>
+
+      </div>
+
+
+      <div
+        style="
+          display:grid;
+          grid-template-columns:
+            1fr 1fr 1fr;
+          gap:8px;
+          margin-bottom:20px;
+        ">
+
+        <div
+          class="card"
+          style="
+            margin:0;
+            text-align:center;
+          ">
+
+          <div class="meta">
+            🔴 Atrasadas
+          </div>
+
+          <h3>
+            ${atrasadas}
+          </h3>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="
+            margin:0;
+            text-align:center;
+          ">
+
+          <div class="meta">
+            📅 Hoje
+          </div>
+
+          <h3>
+            ${hoje}
+          </h3>
+
+        </div>
+
+
+        <div
+          class="card"
+          style="
+            margin:0;
+            text-align:center;
+          ">
+
+          <div class="meta">
+            ✅ Realizadas
+          </div>
+
+          <h3>
+            ${realizadas.length}
+          </h3>
+
+        </div>
+
+      </div>
+
+
+      <div class="section-head">
+
+        <h3>
+          📋 Pendentes
+        </h3>
+
+      </div>
+
+
+      <div class="list">
+
+        ${
+          pendentes.length
+            ?pendentes
+              .map(
+                cardAtividadeProdutorTG
+              )
+              .join('')
+            :`
+              <div class="empty">
+                Nenhuma atividade pendente.
+              </div>
+            `
+        }
+
+      </div>
+
+
+      <div
+        class="section-head"
+        style="margin-top:26px;">
+
+        <h3>
+          ✅ Realizadas
+        </h3>
+
+      </div>
+
+
+      <div class="list">
+
+        ${
+          realizadas.length
+            ?realizadas
+              .map(
+                cardAtividadeProdutorTG
+              )
+              .join('')
+            :`
+              <div class="empty">
+                Nenhuma atividade realizada.
+              </div>
+            `
+        }
+
+      </div>
+
+    </div>
+
+  `;
+
+
+  $('#closeModal').onclick=
+    closeModal;
+
+
+  w.querySelectorAll(
+    '.abrir-atividade-produtor'
+  )
+  .forEach(btn=>{
+
+    btn.onclick=e=>{
+
+      e.stopPropagation();
+
+      const origem=
+        btn.dataset.origem;
+
+      const sid=
+        btn.dataset.sid;
+
+
+      closeModal();
+
+
+      setTimeout(()=>{
+
+        if(origem==='adubacao'){
+
+          openAdubacao(sid);
+
+        }else{
+
+          openAplicacao(sid);
+
+        }
+
+      },60);
+
+    };
+
+  });
+
+
+  w.querySelectorAll(
+    '.realizar-atividade-produtor'
+  )
+  .forEach(btn=>{
+
+    btn.onclick=async e=>{
+
+      e.stopPropagation();
+
+
+      if(
+        !confirm(
+          'Marcar esta atividade como realizada?'
+        )
+      ){
+
+        return;
+
+      }
+
+
+      btn.disabled=true;
+
+
+      try{
+
+        await realizarManejo(
+          btn.dataset.origem,
+          btn.dataset.id
+        );
+
+
+        await loadAll();
+
+
+        abrirAtividadesProdutorTG(
+          produtorId
+        );
+
+
+      }catch(err){
+
+        console.error(err);
+
+        btn.disabled=false;
+
+        toast(
+          'Não foi possível atualizar a atividade'
+        );
+
+      }
+
+    };
+
+  });
+
+}
+
+
+
 function renderAtividadesTG(){
 
-  const pendentesEl=
-    $('#atividadesPendentesLista');
-
-  const realizadasEl=
-    $('#atividadesRealizadasLista');
+  const produtoresEl=
+    $('#atividadesProdutoresLista');
 
 
-  if(!pendentesEl || !realizadasEl){
+  if(!produtoresEl){
+
     return;
+
   }
+
+
+  const atividades=
+    listaAtividadesTG();
 
 
   const hoje=
@@ -16547,79 +17305,44 @@ function renderAtividadesTG(){
   ].join('-');
 
 
-  // =====================================
-  // JUNTA ADUBAÇÃO + BORRIFAÇÃO
-  // =====================================
-
-  const atividades=[];
-
-
-  state.adubacoes.forEach(a=>{
-
-    atividades.push({
-      ...a,
-      origem:'adubacao',
-      nomeAtividade:'Adubação',
-      icone:'🌱'
-    });
-
-  });
-
-
-  state.aplicacoes.forEach(a=>{
-
-    atividades.push({
-      ...a,
-      origem:'aplicacao',
-      nomeAtividade:'Borrifação',
-      icone:'💦'
-    });
-
-  });
-
-
-  // =====================================
-  // SEPARA STATUS
-  // =====================================
-
   const hojeLista=
     atividades.filter(
-      a=>statusManejoTG(a)==='hoje'
+      a=>
+        statusManejoTG(a)===
+        'hoje'
     );
 
 
   const atrasadas=
     atividades.filter(
-      a=>statusManejoTG(a)==='atrasado'
+      a=>
+        statusManejoTG(a)===
+        'atrasado'
     );
 
 
   const semana=
     atividades.filter(a=>
 
-      statusManejoTG(a)==='programado' &&
+      statusManejoTG(a)===
+        'programado' &&
 
-      (a.data_aplicacao||'')>=hoje &&
+      (a.data_aplicacao||'')>=
+        hoje &&
 
-      (a.data_aplicacao||'')<=limite7
+      (a.data_aplicacao||'')<=
+        limite7
+
     );
 
 
   const realizadas=
     atividades.filter(
-      a=>statusManejoTG(a)==='realizado'
+      a=>
+        statusManejoTG(a)===
+        'realizado'
     );
 
-
-  const pendentes=
-    atividades.filter(
-      a=>statusManejoTG(a)!=='realizado'
-    );
-
-
-  // =====================================
-  // CONTADORES
-  // =====================================
 
   const hojeTotal=
     $('#atividadesHojeTotal');
@@ -16635,268 +17358,206 @@ function renderAtividadesTG(){
 
 
   if(hojeTotal){
+
     hojeTotal.textContent=
       hojeLista.length;
+
   }
+
 
   if(atrasadasTotal){
+
     atrasadasTotal.textContent=
       atrasadas.length;
+
   }
+
 
   if(semanaTotal){
+
     semanaTotal.textContent=
       semana.length;
+
   }
+
 
   if(realizadasTotal){
+
     realizadasTotal.textContent=
       realizadas.length;
+
   }
 
 
-  // =====================================
-  // PRODUTOS
-  // =====================================
-
-  function descricaoProdutos(a){
-
-    try{
-
-      const bruto=
-        a.origem==='adubacao'
-          ?a.produto
-          :a.produto_comercial;
+  const produtores=
+    (state.produtores||[])
+      .map(produtor=>{
 
 
-      const itens=
-        JSON.parse(bruto||'');
+        const lista=
+          atividades.filter(a=>{
+
+            const ctx=
+              contextoSafra(
+                a.safra_id
+              );
+
+            return (
+              String(
+                ctx.produtor?.id
+              )===
+              String(
+                produtor.id
+              )
+            );
+
+          });
 
 
-      if(Array.isArray(itens)){
-
-        const nomes=
-          itens
-            .filter(i=>i.produto)
-            .map(i=>{
-
-              let txt=
-                i.produto;
-
-              if(i.dose){
-                txt+=
-                  ` — ${i.dose}`;
-              }
-
-              if(
-                i.unidade ||
-                i.unidade_dose
-              ){
-
-                txt+=
-                  ` ${
-                    i.unidade||
-                    i.unidade_dose
-                  }`;
-              }
-
-              return txt;
-
-            });
+        const atrasadas=
+          lista.filter(
+            a=>
+              statusManejoTG(a)===
+              'atrasado'
+          ).length;
 
 
-        if(nomes.length){
-          return nomes.join(' + ');
+        const pendentes=
+          lista.filter(
+            a=>
+              statusManejoTG(a)!==
+              'realizado'
+          ).length;
+
+
+        const realizadas=
+          lista.filter(
+            a=>
+              statusManejoTG(a)===
+              'realizado'
+          ).length;
+
+
+        return {
+          produtor,
+          total:lista.length,
+          atrasadas,
+          pendentes,
+          realizadas
+        };
+
+      })
+      .sort((a,b)=>{
+
+        if(
+          b.atrasadas!==
+          a.atrasadas
+        ){
+
+          return (
+            b.atrasadas -
+            a.atrasadas
+          );
+
         }
-      }
-
-    }catch(_){}
 
 
-    if(a.origem==='adubacao'){
+        if(
+          b.pendentes!==
+          a.pendentes
+        ){
 
-      return (
-        a.produto ||
-        'Adubação'
-      );
-    }
+          return (
+            b.pendentes -
+            a.pendentes
+          );
+
+        }
 
 
-    return (
-      a.produto_comercial ||
-      a.finalidade ||
-      'Borrifação'
-    );
+        return String(
+          a.produtor.nome||''
+        ).localeCompare(
+          String(
+            b.produtor.nome||''
+          ),
+          'pt-BR'
+        );
+
+      });
+
+
+  if(!produtores.length){
+
+    produtoresEl.innerHTML=`
+
+      <div class="empty">
+        Nenhum produtor cadastrado.
+      </div>
+
+    `;
+
+    return;
+
   }
 
 
-  // =====================================
-  // CARD
-  // =====================================
+  produtoresEl.innerHTML=
+    produtores.map(item=>`
 
-  function cardAtividade(a){
+      <div
+        class="
+          card
+          card-click
+          atividade-produtor-card
+        "
+        data-produtor-id="${
+          esc(
+            item.produtor.id
+          )
+        }">
 
-    const ctx=
-      contextoSafra(
-        a.safra_id
-      );
-
-
-    const status=
-      statusManejoTG(a);
-
-
-    let textoStatus=
-      'Programada';
-
-    let classe=
-      'gold';
-
-
-    if(status==='hoje'){
-
-      textoStatus='Hoje';
-    }
-
-
-    if(status==='atrasado'){
-
-      textoStatus='Atrasada';
-      classe='red';
-    }
-
-
-    if(status==='realizado'){
-
-      textoStatus='Realizada';
-      classe='';
-    }
-
-
-    return `
-
-      <div class="card">
 
         <div class="card-row">
 
           <div>
 
-            <h4>
-              ${a.icone}
-              ${esc(a.nomeAtividade)}
-            </h4>
-
-
-            <div class="meta">
+            <h3
+              style="
+                margin:0;
+              ">
 
               👨‍🌾
-
-              <strong>
-                ${
-                  esc(
-                    ctx.produtor?.nome||
-                    'Produtor'
-                  )
-                }
-              </strong>
-
-            </div>
-
-
-            <div class="meta">
-
-              🌾
-              ${
-                esc(
-                  ctx.safra?.cultura||
-                  'Lavoura'
-                )
-              }
-
-              ${
-                ctx.safra?.variedade
-                  ?' • '+
-                    esc(
-                      ctx.safra.variedade
-                    )
-                  :''
-              }
-
-            </div>
-
-
-            <div class="meta">
-
-              🏡
-              ${
-                esc(
-                  ctx.propriedade?.nome||
-                  'Propriedade'
-                )
-              }
-
-            </div>
-
-
-            <div class="meta">
-
-              🌱
-              ${
-                esc(
-                  ctx.talhao?.nome||
-                  'Talhão'
-                )
-              }
-
-            </div>
-
-
-            <div
-              class="meta"
-              style="margin-top:7px;">
-
-              <strong>
-                ${
-                  esc(
-                    descricaoProdutos(a)
-                  )
-                }
-              </strong>
-
-            </div>
-
-
-            ${
-              a.alvo
-              ?`
-                <div class="meta">
-                  Alvo:
-                  ${esc(a.alvo)}
-                </div>
-              `
-              :''
-            }
-
-
-            <div
-              class="meta"
-              style="margin-top:5px;">
-
-              📅
-              ${dateBR(
-                a.data_aplicacao
+              ${esc(
+                item.produtor.nome ||
+                'Produtor'
               )}
+
+            </h3>
+
+
+            <div
+              class="meta"
+              style="
+                margin-top:5px;
+              ">
+
+              ${
+                item.total
+              }
+              ${
+                item.total===1
+                  ?'atividade cadastrada'
+                  :'atividades cadastradas'
+              }
 
             </div>
 
           </div>
 
 
-          <span
-            class="pill ${classe}">
-
-            ${textoStatus}
-
+          <span class="pill gold">
+            Ver
           </span>
 
         </div>
@@ -16904,219 +17565,70 @@ function renderAtividadesTG(){
 
         <div
           style="
-            display:flex;
+            display:grid;
+            grid-template-columns:
+              1fr 1fr 1fr;
             gap:8px;
-            margin-top:12px;
-            flex-wrap:wrap;
+            margin-top:16px;
           ">
 
 
-          <button
-            type="button"
-            class="btn abrir-atividade"
-            data-origem="${a.origem}"
-            data-sid="${esc(a.safra_id)}">
+          <div>
 
-            ✏️ Abrir / editar
+            <div class="meta">
+              🔴 Atrasadas
+            </div>
 
-          </button>
+            <strong>
+              ${item.atrasadas}
+            </strong>
+
+          </div>
 
 
-          ${
-            status!=='realizado'
-            ?`
+          <div>
 
-              <button
-                type="button"
-                class="btn btn-gold realizar-atividade-central"
-                data-origem="${a.origem}"
-                data-id="${esc(a.id)}">
+            <div class="meta">
+              📋 Pendentes
+            </div>
 
-                ✓ Realizada
+            <strong>
+              ${item.pendentes}
+            </strong>
 
-              </button>
+          </div>
 
-            `
-            :''
-          }
+
+          <div>
+
+            <div class="meta">
+              ✅ Realizadas
+            </div>
+
+            <strong>
+              ${item.realizadas}
+            </strong>
+
+          </div>
 
         </div>
 
       </div>
 
-    `;
-  }
+    `).join('');
 
 
-  // =====================================
-  // PENDENTES
-  // =====================================
-
-  const ordem={
-    atrasado:0,
-    hoje:1,
-    programado:2
-  };
-
-
-  const pendentesOrdenadas=
-    [...pendentes]
-      .sort((a,b)=>{
-
-        const sa=
-          statusManejoTG(a);
-
-        const sb=
-          statusManejoTG(b);
-
-
-        const oa=
-          ordem[sa]??9;
-
-        const ob=
-          ordem[sb]??9;
-
-
-        if(oa!==ob){
-          return oa-ob;
-        }
-
-
-        return (
-          a.data_aplicacao||''
-        ).localeCompare(
-          b.data_aplicacao||''
-        );
-
-      });
-
-
-  pendentesEl.innerHTML=
-
-    pendentesOrdenadas.length
-
-      ?pendentesOrdenadas
-        .map(cardAtividade)
-        .join('')
-
-      :`
-
-        <div class="empty">
-          Nenhuma atividade pendente.
-        </div>
-
-      `;
-
-
-  // =====================================
-  // REALIZADAS
-  // =====================================
-
-  const realizadasOrdenadas=
-    [...realizadas]
-      .sort((a,b)=>{
-
-        const da=
-          a.data_realizacao ||
-          a.data_aplicacao ||
-          '';
-
-        const db=
-          b.data_realizacao ||
-          b.data_aplicacao ||
-          '';
-
-        return db.localeCompare(da);
-
-      });
-
-
-  realizadasEl.innerHTML=
-
-    realizadasOrdenadas.length
-
-      ?realizadasOrdenadas
-        .slice(0,20)
-        .map(cardAtividade)
-        .join('')
-
-      :`
-
-        <div class="empty">
-          Nenhuma atividade realizada.
-        </div>
-
-      `;
-
-
-  // =====================================
-  // ABRIR / EDITAR
-  // =====================================
-
-  document
+  produtoresEl
     .querySelectorAll(
-      '.abrir-atividade'
+      '.atividade-produtor-card'
     )
-    .forEach(btn=>{
+    .forEach(card=>{
 
-      btn.onclick=e=>{
+      card.onclick=()=>{
 
-        e.stopPropagation();
-
-
-        const origem=
-          btn.dataset.origem;
-
-        const sid=
-          btn.dataset.sid;
-
-
-        if(origem==='adubacao'){
-
-          openAdubacao(sid);
-
-        }else{
-
-          openAplicacao(sid);
-
-        }
-
-      };
-
-    });
-
-
-  // =====================================
-  // MARCAR COMO REALIZADA
-  // =====================================
-
-  document
-    .querySelectorAll(
-      '.realizar-atividade-central'
-    )
-    .forEach(btn=>{
-
-      btn.onclick=async e=>{
-
-        e.stopPropagation();
-
-
-        if(
-          !confirm(
-            'Marcar esta atividade como realizada?'
-          )
-        ){
-          return;
-        }
-
-
-        await realizarManejo(
-          btn.dataset.origem,
-          btn.dataset.id
+        abrirAtividadesProdutorTG(
+          card.dataset.produtorId
         );
-
-
-        await loadAll();
 
       };
 
