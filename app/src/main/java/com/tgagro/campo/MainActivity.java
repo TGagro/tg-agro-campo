@@ -191,9 +191,35 @@ protected void onActivityResult(
 }
     private class WebAppInterface {
         
+        @JavascriptInterface
+public void abrirUrl(String url) {
+
+    runOnUiThread(() -> {
+
+        try {
+
+            Intent intent = new Intent(
+                    Intent.ACTION_VIEW,
+                    Uri.parse(url)
+            );
+
+            startActivity(intent);
+
+        } catch (Exception e) {
+
+            Toast.makeText(
+                    MainActivity.this,
+                    "Não foi possível abrir o contrato",
+                    Toast.LENGTH_SHORT
+            ).show();
+
+        }
+
+    });
+}
 
         @JavascriptInterface
-public void capturarLocalizacao() {
+        public void capturarLocalizacao() {
 
     runOnUiThread(() -> {
 
