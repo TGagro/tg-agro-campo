@@ -577,15 +577,193 @@
     <p>Mensalidade, pagamentos, recibos e contrato.</p>
   </div>
 
-  <div
-    id="produtorFinanceiroContent"
-    class="list">
+  <div id="produtorFinanceiroContent" class="list">
 
-    <div class="empty">
-      Informações financeiras ainda não carregadas.
+  <!-- STATUS DA MENSALIDADE -->
+  <div class="card" style="margin-bottom:16px;">
+
+    <div style="
+      font-size:13px;
+      font-weight:800;
+      color:#6f7973;
+      margin-bottom:12px;
+    ">
+      💰 MENSALIDADE
+    </div>
+
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      gap:15px;
+      align-items:flex-start;
+    ">
+
+      <div>
+        <div style="
+          color:#879089;
+          font-size:12px;
+        ">
+          Vencimento
+        </div>
+
+        <strong>Todo dia 28</strong>
+      </div>
+
+      <div style="text-align:right;">
+        <div style="
+          color:#879089;
+          font-size:12px;
+        ">
+          Prazo
+        </div>
+
+        <strong>Até 5 dias após</strong>
+      </div>
+
+    </div>
+
+    <div
+      id="financeiroStatus"
+      style="
+        margin-top:16px;
+        padding:10px 12px;
+        background:#eef5ef;
+        color:#28643d;
+        border-radius:12px;
+        font-size:13px;
+        font-weight:700;
+      ">
+      🟢 Em dia
     </div>
 
   </div>
+
+
+  <!-- PIX -->
+  <div class="card" style="margin-bottom:16px;">
+
+    <div style="
+      font-size:13px;
+      font-weight:800;
+      color:#6f7973;
+      margin-bottom:14px;
+    ">
+      📲 PAGAMENTO VIA PIX
+    </div>
+
+    <div style="font-size:15px;font-weight:800;">
+      Banco Inter
+    </div>
+
+    <div style="
+      color:#69736d;
+      margin-top:4px;
+    ">
+      G. Correia Barros Filho
+    </div>
+
+    <div style="
+      margin-top:15px;
+      color:#879089;
+      font-size:12px;
+    ">
+      Chave PIX • CNPJ
+    </div>
+
+    <div style="
+      font-size:17px;
+      font-weight:800;
+      margin-top:3px;
+    ">
+      62.382.506/0001-60
+    </div>
+
+    <button
+      type="button"
+      onclick="copiarPixTG()"
+      style="
+        width:100%;
+        margin-top:16px;
+        padding:12px;
+        border:0;
+        border-radius:12px;
+        background:#315f45;
+        color:white;
+        font-weight:700;
+        font-size:14px;
+      ">
+      📋 Copiar chave PIX
+    </button>
+
+  </div>
+
+
+  <!-- CONTRATO -->
+  <div class="card" style="margin-bottom:16px;">
+
+    <div style="
+      font-size:13px;
+      font-weight:800;
+      color:#6f7973;
+      margin-bottom:12px;
+    ">
+      📄 CONTRATO
+    </div>
+
+    <div
+      id="produtorContratoStatus"
+      style="
+        color:#7d8681;
+        font-size:14px;
+      ">
+      Contrato ainda não disponibilizado.
+    </div>
+
+    <button
+      id="btnVerContratoProdutor"
+      type="button"
+      style="
+        display:none;
+        width:100%;
+        margin-top:14px;
+        padding:12px;
+        border:1px solid #315f45;
+        border-radius:12px;
+        background:white;
+        color:#315f45;
+        font-weight:700;
+      ">
+      📄 Ver contrato
+    </button>
+
+  </div>
+
+
+  <!-- HISTÓRICO -->
+  <div style="
+    font-size:13px;
+    font-weight:800;
+    color:#6f7973;
+    margin:22px 4px 8px;
+  ">
+    🧾 HISTÓRICO DE PAGAMENTOS
+  </div>
+
+  <div
+    id="produtorHistoricoPagamentos"
+    class="card">
+
+    <div style="
+      text-align:center;
+      color:#818a85;
+      padding:8px;
+    ">
+      Nenhum pagamento registrado ainda.
+    </div>
+
+  </div>
+
+</div>
 
 </section>
 <section id="page-produtor-ficha" class="page"><div class="page-title"><h2>Ficha técnica</h2><p>Seus dados, propriedade e informações técnicas.</p></div><div id="produtorFichaContent" class="list"></div></section>
