@@ -10349,10 +10349,7 @@ function renderProdutorInicio(){
       idsSafrasAtivas.includes(
         String(a.safra_id)
       ) &&
-      !['realizado','realizada'].includes(
-        String(a.status || '')
-          .toLowerCase()
-      )
+      statusManejoTG(a) !== 'realizado'
     )
     .forEach(a=>{
 
@@ -10411,10 +10408,7 @@ function renderProdutorInicio(){
       idsSafrasAtivas.includes(
         String(a.safra_id)
       ) &&
-      !['realizado','realizada'].includes(
-        String(a.status || '')
-          .toLowerCase()
-      )
+      statusManejoTG(a) !== 'realizado'
     )
     .forEach(a=>{
 
