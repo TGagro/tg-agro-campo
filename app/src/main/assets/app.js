@@ -9691,7 +9691,10 @@ async function realizarManejo(origem,id){
   try{
     const r=await api(`/rest/v1/${tabela}?id=eq.${encodeURIComponent(id)}`,{
       method:'PATCH',
-      body:JSON.stringify({status:'realizado'})
+      body:JSON.stringify({
+  status:'realizado',
+  data_realizacao:hojeLocalISO()
+})
     });
 
     if(Array.isArray(r) && r.length===0){
