@@ -8216,15 +8216,368 @@ function calcularTotalManejoProdutor(
 
       unidadeTotal='kg';
 
-    }
+function calcularTotalManejoProdutor(
+  item,
+  safra,
+  volumeCaldaL=0
+){
 
+  const dose=
+    Number(
+      String(item?.dose ?? '')
+        .trim()
+        .replace(',', '.')
+    );
 
-    base=
-      `${volume} L de calda`;
+  if(
+    !Number.isFinite(dose) ||
+    dose<=0
+  ){
+    return null;
   }
 
 
-  if(total===null){
+  // =====================================
+  // NORMALIZA A UNIDADE
+  // =====================================
+
+  let unidade=
+    normalizarTexto(
+      item?.unidade ||
+      item?.unidade_dose ||
+      ''
+    )
+    .trim()
+    .replace(/\s+/g,'');
+
+
+  // aceita diferentes formas de escrever
+  unidade=
+    unidade
+      .replace(/gramas?/g,'g')
+      .replace(/quilogramas?/g,'kg')
+      .replace(/mililitros?/g,'ml')
+      .replace(/litros?/g,'l')
+      .replace(/hectares?/g,'ha')
+      .replace(/por/g,'/')
+      .replace(/\/+/g,'/')
+      .replace(/\/plantas?$/,'/planta')
+      .replace(/\/covas?$/,'/cova')
+      .replace(/\/pes?$/,'/planta')
+      .replace(/\/pl$/,'/planta');
+
+
+  const plantas=
+    Number(
+      safra?.numero_plantas || 0
+    );
+
+
+  const talhao=
+    talhaoOfSafra(safra);
+
+
+  const area=
+    Number(
+      talhao?.area_ha || 0
+    );
+
+
+  const volume=
+    Number(
+      volumeCaldaL || 0
+    );
+
+
+  let total=null;
+  let unidadeTotal='';
+  let base='';
+
+
+  // =====================================
+  // g POR PLANTA / COVA
+  // =====================================
+
+  if(
+    unidade==='g/planta' ||
+    unidade==='g/cova'
+  ){
+
+    if(!plantas){
+      return null;
+    }
+
+
+    total=
+      dose *
+      plantas /
+      1000;
+
+
+    unidadeTotal='kg';
+
+
+    base=
+      `${plantas.toLocaleString(
+        'pt-BR'
+      )} plantas`;
+
+  }
+
+
+  // =====================================
+  // kg POR PLANTA / COVA
+  // =====================================
+
+  else if(
+    unidade==='kg/planta' ||
+    unidade==='kg/cova'
+  ){
+
+    if(!plantas){
+      return null;
+    }
+
+
+    total=
+      dose *
+      plantas;
+
+
+    unidadeTotal='kg';
+
+
+    base=
+      `${plantas.toLocaleString(
+        'pt-BR'
+      )} plantas`;
+
+  }
+
+
+  // =====================================
+  // g / ha
+  // =====================================
+
+  else if(
+    unidade==='g/ha'
+  ){
+
+    if(!area){
+      return null;
+    }
+
+
+    total=
+      dose *
+      area /
+      1000;
+
+
+    unidadeTotal='kg';
+
+
+    base=
+      `${area.toLocaleString(
+        'pt-BR'
+      )} ha`;
+
+  }
+
+
+  // =====================================
+  // kg / ha
+  // =====================================
+
+  else if(
+    unidade==='kg/ha'
+  ){
+
+    if(!area){
+      return null;
+    }
+
+
+    total=
+      dose *
+      area;
+
+
+    unidadeTotal='kg';
+
+
+    base=
+      `${area.toLocaleString(
+        'pt-BR'
+      )} ha`;
+
+  }
+
+
+  // =====================================
+  // mL / ha
+  // =====================================
+
+  else if(
+    unidade==='ml/ha'
+  ){
+
+    if(!area){
+      return null;
+    }
+
+
+    total=
+      dose *
+      area /
+      1000;
+
+
+    unidadeTotal='L';
+
+
+    base=
+      `${area.toLocaleString(
+        'pt-BR'
+      )} ha`;
+
+  }
+
+
+  // =====================================
+  // L / ha
+  // =====================================
+
+  else if(
+    unidade==='l/ha'
+  ){
+
+    if(!area){
+      return null;
+    }
+
+
+    total=
+      dose *
+      area;
+
+
+    unidadeTotal='L';
+
+
+    base=
+      `${area.toLocaleString(
+        'pt-BR'
+      )} ha`;
+
+  }
+
+
+  // =====================================
+  // DOSE POR VOLUME DE CALDA
+  //
+  // Exemplos:
+  // 20 mL/20L
+  // 50 g/20L
+  // 100 mL/100L
+  // =====================================
+
+  else{
+
+    const porCalda=
+      unidade.match(
+        /^(ml|l|g|kg)\/([0-9.,]+)l$/
+      );
+
+
+    if(porCalda){
+
+      if(!volume){
+        return null;
+      }
+
+
+      const tipo=
+        porCalda[1];
+
+
+      const divisor=
+        Number(
+          String(
+            porCalda[2]
+          ).replace(',', '.')
+        );
+
+
+      if(!divisor){
+        return null;
+      }
+
+
+      const quantidade=
+        dose *
+        (
+          volume /
+          divisor
+        );
+
+
+      if(tipo==='ml'){
+
+        total=
+          quantidade /
+          1000;
+
+        unidadeTotal='L';
+
+      }
+
+
+      else if(tipo==='l'){
+
+        total=
+          quantidade;
+
+        unidadeTotal='L';
+
+      }
+
+
+      else if(tipo==='g'){
+
+        total=
+          quantidade /
+          1000;
+
+        unidadeTotal='kg';
+
+      }
+
+
+      else if(tipo==='kg'){
+
+        total=
+          quantidade;
+
+        unidadeTotal='kg';
+
+      }
+
+
+      base=
+        `${volume.toLocaleString(
+          'pt-BR'
+        )} L de calda`;
+
+    }
+
+  }
+
+
+  if(
+    total===null ||
+    !Number.isFinite(total)
+  ){
     return null;
   }
 
@@ -8232,9 +8585,13 @@ function calcularTotalManejoProdutor(
   return {
 
     dose,
+
     plantas,
+
     area,
-    volumeCaldaL:volume,
+
+    volumeCaldaL:
+      volume,
 
     total,
 
@@ -8248,7 +8605,6 @@ function calcularTotalManejoProdutor(
   };
 
 }
-
 function abrirDetalheManejoProdutor(
   origem,
   id
