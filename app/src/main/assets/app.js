@@ -3476,7 +3476,7 @@ function montarRelatorioFinanceiroTecnico(
         });
 
     return Number(
-      historico[0]?.valor || 400
+      historico[0]?.valor || 300
     );
 
   }
@@ -5509,7 +5509,7 @@ function renderFinanceiroTecnico(){
 
 
     return Number(
-      historico[0]?.valor || 400
+      historico[0]?.valor || 300
     );
   }
 
@@ -12114,9 +12114,9 @@ function abrirFinanceiroProdutorTecnico(produtorId){
   const valorAtual =
     pagamentoAtual
       ? Number(
-          pagamentoAtual.valor || 400
+          pagamentoAtual.valor || 300
         )
-      : 400;
+      : 300;
 
 
   const w =
@@ -12694,7 +12694,7 @@ async function abrirPagamentoProdutor(produtorId){
       <input
         type="number"
         id="pagamentoValor"
-        value="400.00"
+        value="300.00"
         min="0"
         step="0.01"
         required>
