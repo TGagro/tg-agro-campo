@@ -12906,6 +12906,250 @@ viewProdutor(produtorId);
     }
   );
 }
+function abrirGerenciarAcessoProdutor(
+  produtorId,
+  acesso
+){
+
+  modal(
+    '🔐 Gerenciar acesso',
+
+    `
+
+      <div class="card">
+
+        <strong style="font-size:19px;">
+          👨‍🌾 ${esc(
+            acesso?.nome || 'Produtor'
+          )}
+        </strong>
+
+        <div
+          class="meta"
+          style="margin-top:8px;"
+        >
+          ${
+            acesso?.email
+              ? esc(acesso.email)
+              : 'E-mail não informado'
+          }
+        </div>
+
+        <div
+          style="
+            margin-top:10px;
+            font-weight:700;
+            color:#287147;
+          "
+        >
+          ${
+            acesso?.ativo
+              ? '✅ Acesso ativo'
+              : '⛔ Acesso bloqueado'
+          }
+        </div>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Nova senha
+        </label>
+
+        <input
+          type="password"
+          id="novaSenhaProdutor"
+          minlength="6"
+          placeholder="Mínimo 6 caracteres"
+          required>
+
+      </div>
+
+
+      <div class="field">
+
+        <label>
+          Confirmar nova senha
+        </label>
+
+        <input
+          type="password"
+          id="confirmarNovaSenhaProdutor"
+          minlength="6"
+          placeholder="Digite novamente"
+          required>
+
+      </div>
+
+    `,
+
+
+    async e=>{
+
+      e.preventDefault();
+
+
+      const btn =
+        e.currentTarget
+          .querySelector(
+            'button[type="submit"]'
+          );
+
+
+      const novaSenha =
+        $('#novaSenhaProdutor')
+          .value;
+
+
+      const confirmar =
+        $('#confirmarNovaSenhaProdutor')
+          .value;
+
+
+      if(novaSenha.length < 6){
+
+        toast(
+          'A senha precisa ter pelo menos 6 caracteres'
+        );
+
+        return;
+
+      }
+
+
+      if(novaSenha !== confirmar){
+
+        toast(
+          'As senhas não são iguais'
+        );
+
+        return;
+
+      }
+
+
+      try{
+
+        btn.disabled = true;
+
+        btn.textContent =
+          'ALTERANDO SENHA...';
+
+
+        const res =
+          await fetch(
+
+            SUPABASE_URL +
+            '/functions/v1/super-endpoint',
+
+            {
+
+              method:'POST',
+
+              headers:{
+
+                'Content-Type':
+                  'application/json',
+
+                'apikey':
+                  SUPABASE_KEY,
+
+                'Authorization':
+                  'Bearer ' +
+                  state.session.access_token
+
+              },
+
+
+              body:JSON.stringify({
+
+                acao:
+                  'alterar_senha',
+
+                produtor_id:
+                  produtorId,
+
+                nova_senha:
+                  novaSenha
+
+              })
+
+            }
+
+          );
+
+
+        const dados =
+          await res.json();
+
+
+        if(!res.ok){
+
+          throw new Error(
+
+            dados?.error ||
+            'Não foi possível alterar a senha'
+
+          );
+
+        }
+
+
+        closeModal();
+
+
+        toast(
+          '✅ Senha alterada com sucesso'
+        );
+
+
+        viewProdutor(
+          produtorId
+        );
+
+
+      }catch(err){
+
+        console.error(
+          'Erro ao alterar senha:',
+          err
+        );
+
+
+        toast(
+
+          err?.message ||
+          'Não foi possível alterar a senha'
+
+        );
+
+
+        btn.disabled = false;
+
+        btn.textContent =
+          '🔑 ALTERAR SENHA';
+
+      }
+
+    }
+
+  );
+
+
+  const btnSalvar =
+    $('#modalForm button[type="submit"]');
+
+
+  if(btnSalvar){
+
+    btnSalvar.textContent =
+      '🔑 ALTERAR SENHA';
+
+  }
+
+}
 async function atualizarAcessoFichaProdutor(produtorId){
 
   const status =
@@ -13000,13 +13244,14 @@ async function atualizarAcessoFichaProdutor(produtorId){
         '🔐 GERENCIAR ACESSO';
 
 
-      btn.onclick = ()=>{
+     btn.onclick = ()=>{
 
-        toast(
-          'Gerenciamento de acesso'
-        );
+  abrirGerenciarAcessoProdutor(
+    produtorId,
+    acesso
+  );
 
-      };
+};
 
 
       return;
