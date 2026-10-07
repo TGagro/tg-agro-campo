@@ -19465,7 +19465,215 @@ function formObj(form){const o={};for(const [k,v] of new FormData(form)){if(v!==
   'longitude'
 ].forEach(k=>{if(o[k]!==undefined)o[k]=Number(o[k])});return o}
 function submitSimple(table){return async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{await insertRow(table,formObj(e.currentTarget));closeModal();await loadAll();toast('Salvo com sucesso')}catch(err){console.error(err);toast('Erro ao salvar. Confira os dados.')}finally{btn.disabled=false}}}
-function go(page){$$('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===page));scrollTo({top:0,behavior:'smooth'})}
+async function renderAcessosProdutores(){
+
+  if(isProdutor()) return;
+
+  const el = $('#acessosProdutoresContent');
+
+  if(!el) return;
+
+  el.innerHTML = `
+    <div class="card">
+      Carregando acessos...
+    </div>
+  `;
+
+  try{
+
+    const res = await fetch(
+      SUPABASE_URL +
+      '/functions/v1/super-endpoint',
+      {
+        method:'POST',
+
+        headers:{
+          'Content-Type':'application/json',
+          'apikey':SUPABASE_KEY,
+          'Authorization':
+            'Bearer ' +
+            state.session.access_token
+        },
+
+        body:JSON.stringify({
+          acao:'listar_acessos'
+        })
+      }
+    );
+
+
+    const dados = await res.json();
+
+
+    if(!res.ok){
+
+      throw new Error(
+        dados?.error ||
+        'Não foi possível carregar os acessos'
+      );
+
+    }
+
+
+    const acessos =
+      Array.isArray(dados?.acessos)
+        ? dados.acessos
+        : [];
+
+
+    if(!acessos.length){
+
+      el.innerHTML = `
+        <div class="card">
+          <div class="empty">
+            Nenhum produtor cadastrado.
+          </div>
+        </div>
+      `;
+
+      return;
+    }
+
+
+    el.innerHTML = acessos.map(a=>`
+
+      <div class="card">
+
+        <div class="card-row">
+
+          <div>
+
+            <strong style="font-size:19px;">
+              👨‍🌾 ${esc(a.nome || 'Produtor')}
+            </strong>
+
+            <div
+              class="meta"
+              style="margin-top:7px;"
+            >
+              ${
+                a.email
+                  ? esc(a.email)
+                  : 'E-mail não cadastrado'
+              }
+            </div>
+
+          </div>
+
+
+          <span class="pill">
+
+            ${
+              !a.possui_acesso
+                ? '⚪ SEM ACESSO'
+                : a.ativo
+                  ? '✅ ATIVO'
+                  : '⛔ BLOQUEADO'
+            }
+
+          </span>
+
+        </div>
+
+
+        ${
+          a.ultimo_acesso
+            ? `
+              <div
+                class="meta"
+                style="margin-top:12px;"
+              >
+                Último acesso:
+                ${new Date(
+                  a.ultimo_acesso
+                ).toLocaleString('pt-BR')}
+              </div>
+            `
+            : ''
+        }
+
+
+        ${
+          a.possui_acesso
+
+            ? `
+              <button
+                type="button"
+                class="btn btn-primary btn-block"
+                data-acesso-produtor="${a.produtor_id}"
+                style="margin-top:14px;"
+              >
+                🔐 GERENCIAR ACESSO
+              </button>
+            `
+
+            : `
+              <button
+                type="button"
+                class="btn btn-primary btn-block"
+                data-edit-produtor="${a.produtor_id}"
+                style="margin-top:14px;"
+              >
+                🔑 CRIAR ACESSO
+              </button>
+            `
+        }
+
+      </div>
+
+    `).join('');
+
+
+  }catch(err){
+
+    console.error(
+      'Erro ao carregar acessos:',
+      err
+    );
+
+    el.innerHTML = `
+      <div class="card">
+        <div class="empty">
+          Não foi possível carregar os acessos.
+        </div>
+      </div>
+    `;
+
+  }
+
+}
+function go(page){
+
+  $$('.page').forEach(
+    p=>
+      p.classList.toggle(
+        'active',
+        p.id==='page-'+page
+      )
+  );
+
+  $$('.nav-btn').forEach(
+    b=>
+      b.classList.toggle(
+        'active',
+        b.dataset.page===page
+      )
+  );
+
+
+  if(page==='acessos-produtores'){
+
+    renderAcessosProdutores();
+
+  }
+
+
+  scrollTo({
+    top:0,
+    behavior:'smooth'
+  });
+
+}
 async function boot(){
   let s=JSON.parse(localStorage.getItem('tg_session')||'null');
 
