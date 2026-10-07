@@ -596,21 +596,6 @@ function statusManejoTG(item){
     ).toLowerCase();
 
 
-  // Se a atividade está marcada como realizada,
-  // mas a data dela ainda é futura,
-  // considera como programada.
-  if(
-    (
-      status==='realizado' ||
-      status==='realizada'
-    ) &&
-    data &&
-    data>hoje
-  ){
-    return 'programado';
-  }
-
-
   if(
     status==='realizado' ||
     status==='realizada'
