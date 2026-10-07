@@ -12332,6 +12332,244 @@ function abrirFinanceiroProdutorTecnico(produtorId){
     };
   }
 }
+function gerarReciboPagamentoTG(
+  produtor,
+  pagamento
+){
+
+  if(!produtor || !pagamento){
+    toast('Dados do recibo incompletos');
+    return;
+  }
+
+
+  const meses=[
+    '',
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro'
+  ];
+
+
+  const dinheiro=
+    Number(pagamento.valor || 0)
+      .toLocaleString(
+        'pt-BR',
+        {
+          style:'currency',
+          currency:'BRL'
+        }
+      );
+
+
+  const forma=
+    String(
+      pagamento.forma_pagamento || ''
+    )
+    .toUpperCase();
+
+
+  const competencia=
+    `${meses[
+      Number(pagamento.competencia_mes)
+    ] || ''}/${pagamento.competencia_ano || ''}`;
+
+
+  const dataPagamento=
+    pagamento.data_pagamento
+      ?dateBR(pagamento.data_pagamento)
+      :'';
+
+
+  const numero=
+    pagamento.numero_recibo ||
+    'Sem número';
+
+
+  const html=`
+
+    <div
+      style="
+        font-family:Arial,sans-serif;
+        padding:28px;
+        color:#203128;
+      "
+    >
+
+      <div
+        style="
+          text-align:center;
+          border-bottom:2px solid #315943;
+          padding-bottom:18px;
+          margin-bottom:26px;
+        "
+      >
+
+        <h1
+          style="
+            margin:0;
+            font-size:28px;
+            color:#315943;
+          "
+        >
+          TG Agro Consultoria
+        </h1>
+
+        <div
+          style="
+            margin-top:6px;
+            font-size:16px;
+          "
+        >
+          Assistência Técnica Rural
+        </div>
+
+        <div
+          style="
+            margin-top:5px;
+            font-size:14px;
+          "
+        >
+          CNPJ: 62.382.506/0001-60
+        </div>
+
+      </div>
+
+
+      <h2
+        style="
+          text-align:center;
+          font-size:25px;
+          margin-bottom:26px;
+        "
+      >
+        🧾 RECIBO DE PAGAMENTO
+      </h2>
+
+
+      <div
+        style="
+          border:1px solid #d9dfdb;
+          border-radius:14px;
+          padding:22px;
+        "
+      >
+
+        <p>
+          <strong>Recebemos de:</strong><br>
+          ${esc(produtor.nome || '')}
+        </p>
+
+
+        ${
+          produtor.cpf_cnpj
+            ?`
+              <p>
+                <strong>CPF/CNPJ:</strong><br>
+                ${esc(produtor.cpf_cnpj)}
+              </p>
+            `
+            :''
+        }
+
+
+        <p>
+          <strong>Valor recebido:</strong><br>
+          <span
+            style="
+              font-size:26px;
+              font-weight:700;
+            "
+          >
+            ${dinheiro}
+          </span>
+        </p>
+
+
+        <p>
+          <strong>Referente a:</strong><br>
+          Assistência Técnica Rural —
+          ${esc(competencia)}
+        </p>
+
+
+        <p>
+          <strong>Forma de pagamento:</strong><br>
+          ${esc(forma)}
+        </p>
+
+
+        <p>
+          <strong>Data do pagamento:</strong><br>
+          ${esc(dataPagamento)}
+        </p>
+
+
+        <p>
+          <strong>Número do recibo:</strong><br>
+          ${esc(numero)}
+        </p>
+
+
+        ${
+          pagamento.observacoes
+            ?`
+              <p>
+                <strong>Observações:</strong><br>
+                ${esc(pagamento.observacoes)}
+              </p>
+            `
+            :''
+        }
+
+      </div>
+
+
+      <div
+        style="
+          margin-top:34px;
+          text-align:center;
+          font-size:14px;
+          color:#66736b;
+        "
+      >
+        Documento gerado automaticamente
+        pelo TG Agro Campo.
+      </div>
+
+    </div>
+  `;
+
+
+  if(
+    window.AndroidTG &&
+    typeof AndroidTG.gerarPdfRelatorio===
+      'function'
+  ){
+
+    AndroidTG.gerarPdfRelatorio(
+      html,
+      'Recibo ' + numero
+    );
+
+  }else{
+
+    toast(
+      'Gerador de PDF indisponível nesta versão do aplicativo'
+    );
+
+  }
+
+}
 
 async function abrirPagamentoProdutor(produtorId){
 
@@ -12517,48 +12755,76 @@ async function abrirPagamentoProdutor(produtorId){
           String(Date.now()).slice(-8);
 
 
-        await api(
-          '/rest/v1/pagamentos_produtores',
-          {
-            method:'POST',
+       const respostaPagamento =
+  await api(
+    '/rest/v1/pagamentos_produtores',
+    {
+      method:'POST',
 
-            body:JSON.stringify({
+      body:JSON.stringify({
 
-              user_id:uid(),
+        user_id:uid(),
 
-              produtor_id:produtorId,
+        produtor_id:produtorId,
 
-              competencia_mes:mes,
+        competencia_mes:mes,
 
-              competencia_ano:ano,
+        competencia_ano:ano,
 
-              valor:valor,
+        valor:valor,
 
-              data_vencimento:
-                dataVencimento,
+        data_vencimento:
+          dataVencimento,
 
-              data_pagamento:
-                dataPagamento,
+        data_pagamento:
+          dataPagamento,
 
-              forma_pagamento:
-                formaPagamento,
+        forma_pagamento:
+          formaPagamento,
 
-              status:'pago',
+        status:'pago',
 
-              numero_recibo:
-                numeroRecibo,
+        numero_recibo:
+          numeroRecibo,
 
-              observacoes:
-                observacoes || null
+        observacoes:
+          observacoes || null
 
-            })
-          }
-        );
+      })
+    }
+  );
 
 
-        toast('✓ Pagamento registrado');
+const pagamentoCriado =
+  Array.isArray(respostaPagamento) &&
+  respostaPagamento.length
+    ? respostaPagamento[0]
+    : {
+        produtor_id:produtorId,
+        competencia_mes:mes,
+        competencia_ano:ano,
+        valor:valor,
+        data_vencimento:dataVencimento,
+        data_pagamento:dataPagamento,
+        forma_pagamento:formaPagamento,
+        status:'pago',
+        numero_recibo:numeroRecibo,
+        observacoes:observacoes || null
+      };
 
-        viewProdutor(produtorId);
+
+toast('✓ Pagamento registrado');
+
+
+gerarReciboPagamentoTG(
+  produtor,
+  pagamentoCriado
+);
+
+
+await loadAll();
+
+viewProdutor(produtorId);
 
 
       }catch(err){
