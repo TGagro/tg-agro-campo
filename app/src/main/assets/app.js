@@ -12906,6 +12906,151 @@ viewProdutor(produtorId);
     }
   );
 }
+async function atualizarAcessoFichaProdutor(produtorId){
+
+  const status =
+    $('#statusAcessoProdutor');
+
+  const btn =
+    $('#criarAcessoProdutor');
+
+
+  if(!status || !btn) return;
+
+
+  status.textContent =
+    'Verificando acesso...';
+
+  btn.disabled = true;
+
+  btn.textContent =
+    '⏳ VERIFICANDO ACESSO...';
+
+
+  try{
+
+    const res =
+      await fetch(
+        SUPABASE_URL +
+        '/functions/v1/super-endpoint',
+        {
+          method:'POST',
+
+          headers:{
+            'Content-Type':'application/json',
+            'apikey':SUPABASE_KEY,
+            'Authorization':
+              'Bearer ' +
+              state.session.access_token
+          },
+
+          body:JSON.stringify({
+            acao:'listar_acessos'
+          })
+        }
+      );
+
+
+    const dados =
+      await res.json();
+
+
+    if(!res.ok){
+
+      throw new Error(
+        dados?.error ||
+        'Erro ao verificar acesso'
+      );
+
+    }
+
+
+    const acesso =
+      (dados?.acessos || [])
+        .find(
+          a =>
+            String(a.produtor_id) ===
+            String(produtorId)
+        );
+
+
+    if(
+      acesso &&
+      acesso.possui_acesso
+    ){
+
+      status.innerHTML = `
+        ${
+          acesso.ativo
+            ? '✅ Acesso ativo'
+            : '⛔ Acesso bloqueado'
+        }
+
+        ${
+          acesso.email
+            ? `<br>${esc(acesso.email)}`
+            : ''
+        }
+      `;
+
+
+      btn.disabled = false;
+
+      btn.textContent =
+        '🔐 GERENCIAR ACESSO';
+
+
+      btn.onclick = ()=>{
+
+        toast(
+          'Gerenciamento de acesso'
+        );
+
+      };
+
+
+      return;
+
+    }
+
+
+    status.textContent =
+      'Este produtor ainda não possui acesso ao aplicativo.';
+
+
+    btn.disabled = false;
+
+    btn.textContent =
+      '🔑 CRIAR ACESSO';
+
+
+  }catch(err){
+
+    console.error(
+      'Erro ao verificar acesso:',
+      err
+    );
+
+
+    status.textContent =
+      'Não foi possível verificar o acesso.';
+
+
+    btn.disabled = false;
+
+    btn.textContent =
+      '🔄 VERIFICAR NOVAMENTE';
+
+
+    btn.onclick = ()=>{
+      atualizarAcessoFichaProdutor(
+        produtorId
+      );
+    };
+
+  }
+
+}
 
 function viewProdutor(id){
 
@@ -13054,16 +13199,21 @@ ${
           🔑 Acesso ao aplicativo
         </h3>
 
-        <p class="meta">
-          Crie o acesso para o produtor entrar no TG Agro Campo.
-        </p>
+        <p
+  class="meta"
+  id="statusAcessoProdutor"
+>
+  Verificando acesso...
+</p>
 
-        <button
-          class="btn btn-primary btn-block"
-          type="button"
-          id="criarAcessoProdutor">
-          🔑 CRIAR ACESSO
-        </button>
+<button
+  class="btn btn-primary btn-block"
+  type="button"
+  id="criarAcessoProdutor"
+  disabled
+>
+  ⏳ VERIFICANDO ACESSO...
+</button>
 
       </div>
 
@@ -13343,9 +13493,12 @@ if(mapaBtn){
           'Não foi possível criar o acesso'
         );
       }
-    };
-}
+      };
 
+
+  atualizarAcessoFichaProdutor(id);
+
+}
 function editProdutor(id){
 
   const p=state.produtores.find(
