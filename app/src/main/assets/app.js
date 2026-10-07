@@ -8541,7 +8541,11 @@ function abrirDetalheManejoProdutor(
 
         <div class="card">
 
-          <h4 style="margin-top:0;">
+          <h4 style="
+  margin-top:0;
+  font-size:28px;
+  line-height:1.2;
+">
 
             ${
               item.categoria
@@ -8554,16 +8558,22 @@ function abrirDetalheManejoProdutor(
           </h4>
 
 
-          <div class="meta">
+          <div
+  class="meta"
+  style="
+    font-size:21px;
+    margin-top:8px;
+  "
+>
 
-            Dose recomendada:
+  Dose recomendada:
 
-            <strong>
-              ${esc(item.dose)}
-              ${esc(item.unidade)}
-            </strong>
+  <strong style="font-size:24px;">
+    ${esc(item.dose)}
+    ${esc(item.unidade)}
+  </strong>
 
-          </div>
+</div>
 
 
           ${
