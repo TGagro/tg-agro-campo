@@ -8069,7 +8069,8 @@ function calcularTotalManejoProdutor(
       .replace(/\/covas?$/,'/cova')
       .replace(/\/p$/,'/planta')
       .replace(/\/pes?$/,'/planta')
-      .replace(/\/pl$/,'/planta');
+      .replace(/\/pl$/,'/planta')
+.replace(/\/bombas?(?:de)?([0-9.,]+)l$/,'/$1l');
 
 
   const plantas=
