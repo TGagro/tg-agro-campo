@@ -11114,7 +11114,12 @@ async function carregarHistoricoPagamentosProdutor(produtorId){
 
   const el = $('#historicoPagamentosProdutor');
   if(!el) return;
-
+  
+const produtor =
+  state.produtores.find(
+    p=>String(p.id)===String(produtorId)
+  );
+  
   try{
 
     const pagamentos = await api(
@@ -11211,6 +11216,7 @@ async function carregarHistoricoPagamentosProdutor(produtorId){
             ${String(p.forma_pagamento || '-').toUpperCase()}
           </strong>
         </div>
+        
 
         <div class="meta" style="margin-top:5px;">
           Recibo:
@@ -11218,10 +11224,51 @@ async function carregarHistoricoPagamentosProdutor(produtorId){
             ${esc(p.numero_recibo || '-')}
           </strong>
         </div>
+        
+        <button
+  type="button"
+  class="btn btn-primary btn-block"
+  data-ver-recibo="${p.id}"
+  style="margin-top:14px;"
+>
+  🧾 VER RECIBO
+</button>
 
       </div>
 
     `).join('');
+
+    el
+  .querySelectorAll('[data-ver-recibo]')
+  .forEach(btn=>{
+
+    btn.onclick=()=>{
+
+      const pagamento =
+        pagamentos.find(
+          p=>
+            String(p.id)===
+            String(btn.dataset.verRecibo)
+        );
+
+      if(!pagamento){
+        toast('Pagamento não encontrado');
+        return;
+      }
+
+      if(!produtor){
+        toast('Produtor não encontrado');
+        return;
+      }
+
+      gerarReciboPagamentoTG(
+        produtor,
+        pagamento
+      );
+
+    };
+
+  });
 
   }catch(err){
 
