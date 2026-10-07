@@ -8067,6 +8067,7 @@ function calcularTotalManejoProdutor(
       .replace(/\/+/g,'/')
       .replace(/\/plantas?$/,'/planta')
       .replace(/\/covas?$/,'/cova')
+      .replace(/\/p$/,'/planta')
       .replace(/\/pes?$/,'/planta')
       .replace(/\/pl$/,'/planta');
 
